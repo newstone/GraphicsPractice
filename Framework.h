@@ -1,5 +1,6 @@
 #pragma once
 #include "Scene.h"
+#include "Camera.h"
 
 class Framework
 {
@@ -23,8 +24,6 @@ private:
 	UINT64                  m_nFenceValues[m_nSwapChainBuffers];
 	HANDLE                  m_hFenceEvent;
 
-	UINT gnCbvSrvDescriptorIncrementSize = 0;
-
 	ComPtr<ID3D12CommandQueue> m_d3dCommandQueue;
 	ComPtr<ID3D12CommandAllocator> m_d3dCommandAllocator;
 	ComPtr<ID3D12GraphicsCommandList> m_d3dCommandList;
@@ -40,6 +39,7 @@ private:
 	UINT				  m_nSwapChainBufferIndex;
 
 	Scene* m_pScene;
+	Camera* m_pCamera;
 public:
 	Framework();
 	~Framework();
@@ -53,10 +53,13 @@ public:
 	void CreateRenderTargetViews();
 	void CreateDepthStencilView();
 
+	void BuildScene();
+
 	void OnResizeBackBuffers();
 	void WaitForGpuComplete(); 
 	void MoveToNextFrame();
 
+	void Update();
 	void Run();
 };
 

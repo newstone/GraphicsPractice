@@ -64,10 +64,10 @@ Mesh::Mesh(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList,
 	m_nStride = pVertex->GetVertexSize();
 	m_nVertices = pVertex->GetVertices();
 
-	m_pd3dVertexBuffer = CreateBufferResource(pd3dDevice, pd3dCommandList, pVertex->GetPosition(), m_nStride * m_nVertices
-		, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, &m_pd3dVertexUploadBuffer);
+	m_d3dVertexBuffer = CreateBufferResource(pd3dDevice, pd3dCommandList, pVertex->GetPosition(), m_nStride * m_nVertices
+		, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, &m_d3dVertexUploadBuffer);
 
-	m_d3dVertexBufferView.BufferLocation = m_pd3dVertexBuffer->GetGPUVirtualAddress();
+	m_d3dVertexBufferView.BufferLocation = m_d3dVertexBuffer->GetGPUVirtualAddress();
 	m_d3dVertexBufferView.StrideInBytes = m_nStride;
 	m_d3dVertexBufferView.SizeInBytes = m_nStride * m_nVertices;
 }
@@ -159,7 +159,7 @@ void Mesh::Render(ID3D12GraphicsCommandList *pd3dCommandList)
 	pd3dCommandList->IASetPrimitiveTopology(m_d3dPrimitiveTopology);
 	pd3dCommandList->IASetVertexBuffers(m_nSlot, 1, &m_d3dVertexBufferView);
 
-	if (m_pd3dIndexBuffer)
+	if (m_d3dIndexBuffer)
 	{
 		pd3dCommandList->IASetIndexBuffer(&m_d3dIndexBufferView);
 		pd3dCommandList->DrawIndexedInstanced(m_nIndices, 1, 0, 0, 0);

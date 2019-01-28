@@ -1,13 +1,18 @@
 #include "stdafx.h"
 #include "Framework.h"
 
+UINT gnCbvSrvDescriptorIncrementSize = 0;
 
-Framework::Framework(): m_dxgiFactoryFlags(0) , m_pScene(nullptr)
+Framework::Framework(): m_dxgiFactoryFlags(0) , m_pScene(nullptr), m_pCamera(nullptr)
 {	
 }
 
 Framework::~Framework()
 {
+	if (m_pCamera != nullptr)
+		delete m_pCamera;
+	if(m_pScene != nullptr)
+		delete m_pScene;
 }
 
 void Framework::OnCreate(HWND hMainWnd)
@@ -19,6 +24,8 @@ void Framework::OnCreate(HWND hMainWnd)
 	CreateDescriptHeap();
 	CreateSwapChain();
 	OnResizeBackBuffers();
+
+	BuildScene();
 }
 
 void Framework::CreateDevice()
@@ -97,6 +104,16 @@ void Framework::CreateDescriptHeap()
 	m_nDsvDescriptorIncrementSize = m_d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 }
 
+void Framework::BuildScene()
+{
+	m_pScene = new Scene();
+	m_pScene->CreateGraphicsRootSignature(m_d3dDevice.Get());
+	m_pScene->BuildObjects(m_d3dDevice.Get(), m_d3dCommandList.Get());
+
+	m_pCamera = new Camera();
+	if (m_pCamera)
+		m_pCamera->CreateShaderVariables(m_d3dDevice.Get(), m_d3dCommandList.Get());
+}
 
 void Framework::CreateSwapChainRenderTargetViews()
 {
@@ -248,10 +265,16 @@ void Framework::MoveToNextFrame()
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
 	}
 }
+void Framework::Update()
+{
+	m_pCamera->UpdateShaderVariables(m_d3dCommandList.Get());
+}
 void Framework::Run()
 {
 	HRESULT hresult (m_d3dCommandAllocator->Reset());
 	hresult = m_d3dCommandList->Reset(m_d3dCommandAllocator.Get(), nullptr);
+	m_d3dCommandList->RSSetViewports(1, m_pCamera->GetViewport());
+	m_d3dCommandList->RSSetScissorRects(1, m_pCamera->GetScissorRect());
 
 	D3D12_RESOURCE_BARRIER barriers[] = {
 		CD3DX12_RESOURCE_BARRIER::Transition(m_d3dSwapChainBackBuffers[m_nSwapChainBufferIndex].Get()
@@ -267,8 +290,8 @@ void Framework::Run()
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dDsvCPUDescriptorHandle = m_d3dDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	m_d3dCommandList->ClearDepthStencilView(d3dDsvCPUDescriptorHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, NULL);
 	m_d3dCommandList->OMSetRenderTargets(1, &d3dRtvCPUDescriptorHandle, TRUE, &d3dDsvCPUDescriptorHandle);
-
 	// ±×¸®±â
+	m_pScene->Render(m_d3dCommandList.Get());
 
 	barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;

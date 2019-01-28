@@ -1,10 +1,6 @@
 #include "stdafx.h"
 #include "Object.h"
 
-Material::Material()
-{}
-Material::~Material()
-{}
 D3D12_SHADER_RESOURCE_VIEW_DESC Material::GetShaderResourceViewDesc(D3D12_RESOURCE_DESC d3dResourceDesc, UINT nTextureType)
 {
 	D3D12_SHADER_RESOURCE_VIEW_DESC d3dShaderResourceViewDesc;
@@ -53,18 +49,29 @@ Object::Object(int nMeshes) : m_nMeshes(nMeshes), m_nMeshIndex(0)
 {
 	XMStoreFloat4x4(&m_xmf4x4World, XMMatrixIdentity());
 	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
-
-	m_ppMeshes = new Mesh*[m_nMeshes];
 }
 
 Object::~Object()
 {
+	for (int i = 0; i < m_vpRenderer.size(); i++)
+		delete m_vpRenderer[i];
+
+	for (int i = 0; i < m_vpMeshes.size(); i++)
+		delete m_vpMeshes[i];
+}
+
+void Object::CreateRenderer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature)
+{
+	m_vpRenderer[0]->CreateRenderer(pd3dDevice, pd3dCommandList, pd3dGraphicsRootSignature);
 }
 
 void Object::SetMesh(Mesh* pMesh)
 {
-	m_ppMeshes[m_nMeshIndex] = pMesh;
-	m_nMeshIndex++;
+	m_vpMeshes.push_back(pMesh);
+}
+void Object::SetRenderer(Renderer* pRenderer)
+{
+	m_vpRenderer.push_back(pRenderer);
 }
 
 void Object::SetPosition(const XMFLOAT3& xmf3Position)
@@ -86,11 +93,12 @@ XMFLOAT3 Object::GetPosition()
 
 Mesh* Object::GetMesh(int nIndex)
 {
-	return m_ppMeshes[nIndex];
+	return m_vpMeshes[nIndex];
 }
 void Object::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	m_ppMeshes[0]->Render(pd3dCommandList);
+	m_vpRenderer[0]->OnPrepareForRender(pd3dCommandList);
+	m_vpMeshes[0]->Render(pd3dCommandList);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

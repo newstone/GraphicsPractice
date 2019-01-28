@@ -37,5 +37,9 @@ public:
 	void RegenerateViewMatrix();
 	void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
 	void UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList);
+	void SetViewportsAndScissorRects(ID3D12GraphicsCommandList *pd3dCommandList);
+
+	const D3D12_VIEWPORT* GetViewport() { return(&m_d3dViewport); }
+	const D3D12_RECT* GetScissorRect() { return(&m_d3dScissorRect); }
 };
 

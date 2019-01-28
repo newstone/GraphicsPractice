@@ -1,47 +1,35 @@
 #pragma once
 #include "Mesh.h"
-
-#define RESOURCE_TEXTURE2D			0x01
-#define RESOURCE_TEXTURE2D_ARRAY	0x02	//[]
-#define RESOURCE_TEXTURE2DARRAY		0x03
-#define RESOURCE_TEXTURE_CUBE		0x04
-#define RESOURCE_BUFFER				0x05
-
-class Material
-{
-	Material();
-	~Material();
-
-	static D3D12_SHADER_RESOURCE_VIEW_DESC GetShaderResourceViewDesc(D3D12_RESOURCE_DESC d3dResourceDesc, UINT nTextureType);
-};
+#include "Renderer.h"
 
 class Object
 {
-private:
-	string strName;
-
 protected:
-
+	string strName;
 	XMFLOAT4X4 m_xmf4x4World;
 	XMFLOAT3 m_xmf3Position;
 	
-	Mesh** m_ppMeshes;
+	vector<Mesh*> m_vpMeshes;
 	int m_nMeshes;
 	int m_nMeshIndex;
 
-	Material** m_ppMaterials;
 	int m_nMaterials;
 	int m_nMaterialIndex;
 	ComPtr<ID3D12DescriptorHeap> m_d3dDescriptorHeap;
+
+	vector<Renderer*> m_vpRenderer;
 public:
 	Object(int nMeshes);
 	~Object();
+
+	void CreateRenderer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
 
 	XMFLOAT3 GetPosition();
 	void SetPosition(const XMFLOAT3& xmf3Position);
 	void SetPosition(float fX, float fY, float fZ);
 
 	void SetMesh(Mesh* pMesh);
+	void SetRenderer(Renderer* pRenderer);
 	Mesh* GetMesh(int nIndex);
 	virtual void Render(ID3D12GraphicsCommandList* pd3dCommandList);
 };

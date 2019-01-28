@@ -1,7 +1,7 @@
 #pragma once
 
 #include <fbxsdk.h>
-#include "Renderer.h"
+#include "Object.h"
 
 class FBX
 {

@@ -1,5 +1,5 @@
 #pragma once
-#include <vector>
+
 #include <string>
 #include "XMMath.h"
 
@@ -67,11 +67,11 @@ protected:
 	UINT	m_nVertices = 0;
 	Vertex* m_pVertex;
 
-	ID3D12Resource					*m_pd3dVertexBuffer = NULL;
-	ID3D12Resource					*m_pd3dVertexUploadBuffer = NULL;
+	ComPtr<ID3D12Resource>					m_d3dVertexBuffer ;
+	ComPtr<ID3D12Resource>					m_d3dVertexUploadBuffer;
 
-	ID3D12Resource					*m_pd3dIndexBuffer = NULL;
-	ID3D12Resource					*m_pd3dIndexUploadBuffer = NULL;
+	ComPtr<ID3D12Resource>					m_d3dIndexBuffer;
+	ComPtr<ID3D12Resource>					m_d3dIndexUploadBuffer;
 
 	D3D12_VERTEX_BUFFER_VIEW		m_d3dVertexBufferView;
 	D3D12_INDEX_BUFFER_VIEW			m_d3dIndexBufferView;

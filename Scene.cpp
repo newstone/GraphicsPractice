@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "Scene.h"
-
+#include "Camera.h"
 
 Scene::Scene() : m_pFBX(nullptr)
 {	
@@ -19,8 +19,14 @@ void Scene::LoadModel(const string& strPath)
 	m_pFBX->LoadFBXFile(strPath, m_pObject);
 }
 
+void Scene::SetCamera(Camera* pCamera)
+{
+	m_pCamera = pCamera;
+}
+
 void Scene::BuildObjects(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
 {
+	m_pObject->CreateRenderer(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get());
 }
 
 ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice)
@@ -30,12 +36,12 @@ ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice
 	pd3dDescriptorRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	pd3dDescriptorRanges[0].RegisterSpace = 0;
 	pd3dDescriptorRanges[0].NumDescriptors = 1;
-	pd3dDescriptorRanges[0].BaseShaderRegister = 2;
+	pd3dDescriptorRanges[0].BaseShaderRegister = 0;
 	pd3dDescriptorRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	pd3dDescriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	pd3dDescriptorRanges[1].NumDescriptors = 1;
-	pd3dDescriptorRanges[1].BaseShaderRegister = 3;
+	pd3dDescriptorRanges[1].BaseShaderRegister = 0;
 	pd3dDescriptorRanges[1].RegisterSpace = 0;
 	pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
@@ -109,5 +115,12 @@ ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice
 	if (pd3dErrorBlob)
 		pd3dErrorBlob->Release();
 
-	return(m_pd3dGraphicsRootSignature);
+	return(m_pd3dGraphicsRootSignature.Get());
+}
+
+void Scene::Render(ID3D12GraphicsCommandList *pd3dCommandList)
+{
+	pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get());
+
+	m_pObject->Render(pd3dCommandList);
 }

@@ -38,7 +38,11 @@ void Camera::SetScissorRect(LONG xLeft, LONG yTop, LONG xRight, LONG yBottom)
 	m_d3dScissorRect.right = xRight;
 	m_d3dScissorRect.bottom = yBottom;
 }
-
+void Camera::SetViewportsAndScissorRects(ID3D12GraphicsCommandList *pd3dCommandList)
+{
+	pd3dCommandList->RSSetViewports(1, &m_d3dViewport);
+	pd3dCommandList->RSSetScissorRects(1, &m_d3dScissorRect);
+}
 void Camera::GenerateProjectionMatrix(float fNearPlaneDistance, float fFarPlaneDistance, float fAspectRatio, float fFOVAngle)
 {
 	m_CameraInfo.m_xmf4x4Projection = PerspectiveFovLH(XMConvertToRadians(fFOVAngle), fAspectRatio, fNearPlaneDistance, fFarPlaneDistance);
