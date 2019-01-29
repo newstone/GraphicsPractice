@@ -110,9 +110,15 @@ void Framework::BuildScene()
 	m_pScene->CreateGraphicsRootSignature(m_d3dDevice.Get());
 	m_pScene->BuildObjects(m_d3dDevice.Get(), m_d3dCommandList.Get());
 
+	m_pPlayer = new Player();
+
 	m_pCamera = new Camera();
+
 	if (m_pCamera)
+	{
 		m_pCamera->CreateShaderVariables(m_d3dDevice.Get(), m_d3dCommandList.Get());
+		m_pPlayer->SetCamera(m_pCamera);
+	}
 }
 
 void Framework::CreateSwapChainRenderTargetViews()
@@ -265,12 +271,54 @@ void Framework::MoveToNextFrame()
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
 	}
 }
+void Framework::ProcessInput()
+{
+	static UCHAR pKeysBuffer[256];
+	DWORD dwDirection = 0;
+	if (::GetKeyboardState(pKeysBuffer))
+	{
+		if (pKeysBuffer[VK_UP] & 0xF0) dwDirection |= DIR_FORWARD;
+		if (pKeysBuffer[VK_DOWN] & 0xF0) dwDirection |= DIR_BACKWARD;
+		if (pKeysBuffer[VK_LEFT] & 0xF0) dwDirection |= DIR_LEFT;
+		if (pKeysBuffer[VK_RIGHT] & 0xF0) dwDirection |= DIR_RIGHT;
+		if (pKeysBuffer[VK_PRIOR] & 0xF0) dwDirection |= DIR_UP;
+		if (pKeysBuffer[VK_NEXT] & 0xF0) dwDirection |= DIR_DOWN;
+	}
+
+	float cxDelta = 0.0f, cyDelta = 0.0f;
+	if (GetCapture() == m_hWnd)
+	{
+		::SetCursor(NULL);
+		POINT ptCursorPos;
+		::GetCursorPos(&ptCursorPos);
+		cxDelta = (float)(ptCursorPos.x - m_ptOldCursorPos.x) / 3.0f;
+		cyDelta = (float)(ptCursorPos.y - m_ptOldCursorPos.y) / 3.0f;
+		::SetCursorPos(m_ptOldCursorPos.x, m_ptOldCursorPos.y);
+	}
+
+	if ((dwDirection != 0) || (cxDelta != 0.0f) || (cyDelta != 0.0f))
+	{
+		if (cxDelta || cyDelta)
+		{
+			if (pKeysBuffer[VK_RBUTTON] & 0xF0)
+				m_pPlayer->Rotate(cyDelta, 0.0f, -cxDelta);
+			else
+				m_pPlayer->Rotate(cyDelta, cxDelta, 0.0f);
+		}
+		if (dwDirection) 
+			m_pPlayer->Move(dwDirection, 0.005f, true);
+	}
+
+	m_pPlayer->Update(0.0f);
+}
 void Framework::Update()
 {
 	m_pCamera->UpdateShaderVariables(m_d3dCommandList.Get());
 }
 void Framework::Run()
 {
+	ProcessInput();
+
 	HRESULT hresult (m_d3dCommandAllocator->Reset());
 	hresult = m_d3dCommandList->Reset(m_d3dCommandAllocator.Get(), nullptr);
 	m_d3dCommandList->RSSetViewports(1, m_pCamera->GetViewport());

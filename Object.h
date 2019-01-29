@@ -19,10 +19,11 @@ protected:
 
 	vector<Renderer*> m_vpRenderer;
 public:
+	Object();
 	Object(int nMeshes);
 	~Object();
 
-	void CreateRenderer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList);
+	void CreateRenderer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature);
 
 	XMFLOAT3 GetPosition();
 	void SetPosition(const XMFLOAT3& xmf3Position);

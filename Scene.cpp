@@ -9,6 +9,7 @@ Scene::Scene() : m_pFBX(nullptr)
 
 Scene::~Scene()
 {
+	delete m_pObject;
 }
 
 void Scene::LoadModel(const string& strPath)
@@ -26,7 +27,12 @@ void Scene::SetCamera(Camera* pCamera)
 
 void Scene::BuildObjects(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
 {
-	m_pObject->CreateRenderer(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get());
+	if (m_pObject != nullptr)
+	{
+		Renderer* pDR = new DiffuseRenderer();
+		m_pObject->SetRenderer(pDR);
+		m_pObject->CreateRenderer(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get());
+	}
 }
 
 ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice)
@@ -36,7 +42,7 @@ ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice
 	pd3dDescriptorRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	pd3dDescriptorRanges[0].RegisterSpace = 0;
 	pd3dDescriptorRanges[0].NumDescriptors = 1;
-	pd3dDescriptorRanges[0].BaseShaderRegister = 0;
+	pd3dDescriptorRanges[0].BaseShaderRegister = 2;
 	pd3dDescriptorRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	pd3dDescriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -107,8 +113,16 @@ ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice
 	ID3DBlob *pd3dSignatureBlob = NULL;
 	ID3DBlob *pd3dErrorBlob = NULL;
 	D3D12SerializeRootSignature(&d3dRootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pd3dSignatureBlob, &pd3dErrorBlob);
+
+	if (pd3dErrorBlob != nullptr)
+	{
+		OutputDebugStringA((char*)pd3dErrorBlob->GetBufferPointer());
+		pd3dErrorBlob->Release();
+	}
+
 	pd3dDevice->CreateRootSignature(0, pd3dSignatureBlob->GetBufferPointer(), pd3dSignatureBlob->GetBufferSize()
 		, __uuidof(ID3D12RootSignature), (void **)&m_pd3dGraphicsRootSignature);
+
 
 	if (pd3dSignatureBlob)
 		pd3dSignatureBlob->Release();
@@ -121,6 +135,7 @@ ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice
 void Scene::Render(ID3D12GraphicsCommandList *pd3dCommandList)
 {
 	pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get());
-
-	m_pObject->Render(pd3dCommandList);
+	
+	if(m_pObject != nullptr)
+		m_pObject->Render(pd3dCommandList);
 }

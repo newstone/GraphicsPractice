@@ -1,5 +1,7 @@
 #pragma once
 
+class Player;
+
 struct CameraInfo
 {
 	XMFLOAT4X4 m_xmf4x4View;
@@ -22,6 +24,8 @@ class Camera
 	XMFLOAT3 m_xmf3Up;
 
 	XMFLOAT3	m_xmf3LookAtWorld;
+
+	Player* m_pPlayer;
 public:
 	Camera();
 	~Camera();
@@ -38,6 +42,9 @@ public:
 	void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
 	void UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList);
 	void SetViewportsAndScissorRects(ID3D12GraphicsCommandList *pd3dCommandList);
+	
+	virtual void Move(const XMFLOAT3& xmf3Shift) { m_CameraInfo.m_xmf3CameraPosition.x += xmf3Shift.x; m_CameraInfo.m_xmf3CameraPosition.y += xmf3Shift.y; m_CameraInfo.m_xmf3CameraPosition.z += xmf3Shift.z; }
+	void Rotate(float x, float y, float z);
 
 	const D3D12_VIEWPORT* GetViewport() { return(&m_d3dViewport); }
 	const D3D12_RECT* GetScissorRect() { return(&m_d3dScissorRect); }

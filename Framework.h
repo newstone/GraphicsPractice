@@ -40,6 +40,9 @@ private:
 
 	Scene* m_pScene;
 	Camera* m_pCamera;
+	Player* m_pPlayer;
+
+	POINT						m_ptOldCursorPos;
 public:
 	Framework();
 	~Framework();
@@ -59,6 +62,7 @@ public:
 	void WaitForGpuComplete(); 
 	void MoveToNextFrame();
 
+	void ProcessInput();
 	void Update();
 	void Run();
 };

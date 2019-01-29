@@ -1,6 +1,6 @@
 #include "stdafx.h"
+#include "Player.h"
 #include "Camera.h"
-#include "Object.h"
 
 inline XMFLOAT4X4 Camera::PerspectiveFovLH(float FovAngleY, float AspectRatio, float NearZ, float FarZ)
 {
@@ -92,4 +92,40 @@ void Camera::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList)
 
 	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = m_pd3dcbCamera->GetGPUVirtualAddress();
 	pd3dCommandList->SetGraphicsRootConstantBufferView(1, d3dGpuVirtualAddress);
+}
+void Camera::Rotate(float x, float y, float z)
+{
+	if (m_pPlayer && (x != 0.0f))
+	{
+		XMFLOAT3 xmf3Right = m_pPlayer->GetRightVector();
+		XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&xmf3Right), XMConvertToRadians(x));
+		m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
+		m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, xmmtxRotate);
+		m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
+		m_CameraInfo.m_xmf3CameraPosition = Vector3::Subtract(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
+		m_CameraInfo.m_xmf3CameraPosition = Vector3::TransformCoord(m_CameraInfo.m_xmf3CameraPosition, xmmtxRotate);
+		m_CameraInfo.m_xmf3CameraPosition = Vector3::Add(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
+	}
+	if (m_pPlayer && (y != 0.0f))
+	{
+		XMFLOAT3 xmf3Up = m_pPlayer->GetUpVector();
+		XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&xmf3Up), XMConvertToRadians(y));
+		m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
+		m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, xmmtxRotate);
+		m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
+		m_CameraInfo.m_xmf3CameraPosition = Vector3::Subtract(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
+		m_CameraInfo.m_xmf3CameraPosition = Vector3::TransformCoord(m_CameraInfo.m_xmf3CameraPosition, xmmtxRotate);
+		m_CameraInfo.m_xmf3CameraPosition = Vector3::Add(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
+	}
+	if (m_pPlayer && (z != 0.0f))
+	{
+		XMFLOAT3 xmf3Look = m_pPlayer->GetLookVector();
+		XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&xmf3Look), XMConvertToRadians(z));
+		m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
+		m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, xmmtxRotate);
+		m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
+		m_CameraInfo.m_xmf3CameraPosition = Vector3::Subtract(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
+		m_CameraInfo.m_xmf3CameraPosition = Vector3::TransformCoord(m_CameraInfo.m_xmf3CameraPosition, xmmtxRotate);
+		m_CameraInfo.m_xmf3CameraPosition = Vector3::Add(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
+	}
 }
