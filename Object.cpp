@@ -46,12 +46,12 @@ D3D12_SHADER_RESOURCE_VIEW_DESC Material::GetShaderResourceViewDesc(D3D12_RESOUR
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Object::Object() : m_nMeshes(0), m_nMeshIndex(0)
 {
-	XMStoreFloat4x4(&m_xmf4x4World, XMMatrixIdentity());
+	XMStoreFloat4x4(&m_ObjectInfo.xmf4x4World, XMMatrixIdentity());
 	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 Object::Object(int nMeshes) : m_nMeshes(nMeshes), m_nMeshIndex(0)
 {
-	XMStoreFloat4x4(&m_xmf4x4World, XMMatrixIdentity());
+	XMStoreFloat4x4(&m_ObjectInfo.xmf4x4World, XMMatrixIdentity());
 	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 
@@ -64,6 +64,23 @@ Object::~Object()
 		delete m_vpMeshes[i];
 }
 
+void Object::CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
+{
+	UINT ncbElementBytes = ((sizeof(OBJECT_INFO) + 255) & ~255); //256ÀÇ ¹è¼ö
+	m_d3dcbObjects = Mesh::CreateBufferResource(pd3dDevice, pd3dCommandList, NULL, ncbElementBytes
+		, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, NULL);
+
+	m_d3dcbObjects->Map(0, NULL, (void **)&m_pMappedObjectInfo);
+}
+void Object::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList, UINT RootParameterIndex)
+{
+	UINT ncbElementBytes = ((sizeof(OBJECT_INFO) + 255) & ~255);
+
+	pd3dCommandList->SetGraphicsRootShaderResourceView(RootParameterIndex, m_d3dcbObjects->GetGPUVirtualAddress());
+	OBJECT_INFO *pbMappedcbGameObject = (OBJECT_INFO *)((UINT8 *)m_pMappedObjectInfo);
+		
+	XMStoreFloat4x4(&pbMappedcbGameObject->xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_ObjectInfo.xmf4x4World)));
+}
 void Object::CreateRenderer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature)
 {
 	m_vpRenderer[0]->CreateRenderer(pd3dDevice, pd3dCommandList, pd3dGraphicsRootSignature);
@@ -101,7 +118,8 @@ Mesh* Object::GetMesh(int nIndex)
 }
 void Object::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 {
-	m_vpRenderer[0]->OnPrepareForRender(pd3dCommandList);
+	UpdateShaderVariables(pd3dCommandList, 2);
+	//m_vpRenderer[0]->OnPrepareForRender(pd3dCommandList);
 	m_vpMeshes[0]->Render(pd3dCommandList);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

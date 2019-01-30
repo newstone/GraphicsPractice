@@ -108,6 +108,10 @@ void Framework::BuildScene()
 {
 	m_pScene = new Scene();
 	m_pScene->CreateGraphicsRootSignature(m_d3dDevice.Get());
+	
+	string str("dry_tree.FBX");
+	m_pScene->LoadModel(m_d3dDevice.Get(), m_d3dCommandList.Get(), str);
+
 	m_pScene->BuildObjects(m_d3dDevice.Get(), m_d3dCommandList.Get());
 
 	m_pPlayer = new Player();

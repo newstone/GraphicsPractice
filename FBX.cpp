@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "FBX.h"
+#include <stack>
 
 FBX::FBX()
 {
@@ -9,7 +10,7 @@ FBX::~FBX()
 {
 }
 
-HRESULT FBX::LoadFBXFile(const string& strPath, Object* pOutObject)
+HRESULT FBX::LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath, Object* pOutObject)
 {
 	m_pfbxSdkManager = FbxManager::Create();
 	
@@ -44,7 +45,7 @@ HRESULT FBX::LoadFBXFile(const string& strPath, Object* pOutObject)
 	if (!bSuccess) 
 		return E_FAIL;
 
-	SetModel(m_pfbxScene->GetNode(0), pOutObject);
+	SetModel(pd3dDevice, pd3dCommandList, m_pfbxScene->GetNode(0), pOutObject);
 	   
 	pfbxImporter->Destroy();
 
@@ -251,10 +252,33 @@ void FBX::GetUV(FbxMesh* pFbxMesh, vector<XMFLOAT2>& xmf3UV)
 	}
 }
 
-void FBX::SetModel(FbxNode* pNode, Object* pOutObject)
+void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pNode, Object* pOutObject)
 {
 	if (pNode == nullptr)
 		return;
+
+	stack<FbxMesh*> fbxMeshes;
+	stack<FbxNode*> fbxAllNode;
+
+	fbxAllNode.push(pNode);
+
+	while (1)
+	{
+		if (fbxAllNode.empty())
+			break;
+
+		FbxNode* pFbxNode =  fbxAllNode.top();
+		fbxAllNode.pop();
+
+		FbxMesh* pFM = pFbxNode->GetMesh();
+		if (pFM != nullptr)
+			fbxMeshes.push(pFM);
+
+		for (int i = 0; i < pFbxNode->GetChildCount(); i++)
+		{
+			fbxAllNode.push(pFbxNode->GetChild(i));
+		}
+	}
 
 	vector<XMFLOAT3> xmf3Position;
 	vector<XMFLOAT2> xmf2UV;
@@ -264,7 +288,7 @@ void FBX::SetModel(FbxNode* pNode, Object* pOutObject)
 
 	vector<UINT> Indices;
 
-	FbxMesh* pFbxMesh = pNode->GetMesh();
+	FbxMesh* pFbxMesh = fbxMeshes.top();
 
 	if (pFbxMesh == nullptr)
 		return;
@@ -276,6 +300,7 @@ void FBX::SetModel(FbxNode* pNode, Object* pOutObject)
 
 	if (xmf3Position.size() > 0)
 	{
+		Vertex* pV;
 		UINT nVertices(xmf3Position.size());
 		UINT nIndices(Indices.size());
 
@@ -338,28 +363,33 @@ void FBX::SetModel(FbxNode* pNode, Object* pOutObject)
 			}
 		}
 
-		pOutObject->GetMesh(0)->GetVertex()->SetPosition(pxmf3Position);
+		pV = new Vertex(nVertices);
+		pV->SetPosition(pxmf3Position);
 
 		if (xmf2UV.size() > 0)
 		{
-			pOutObject->GetMesh(0)->GetVertex()->SetUV(pxmf2UV);
+			pV->SetUV(pxmf2UV);
 		}
 		if (xmf3Tangent.size() > 0)
 		{
-			pOutObject->GetMesh(0)->GetVertex()->SetTangent(pxmf3Tangent);
+			pV->SetTangent(pxmf3Tangent);
 		}
 		if (xmf3Normal.size() > 0)
 		{
-			pOutObject->GetMesh(0)->GetVertex()->SetNormal(pxmf3Normal);
+			pV->SetNormal(pxmf3Normal);
 		}
 		if (xmf4Color.size() > 0)
 		{
-			pOutObject->GetMesh(0)->GetVertex()->SetColor(pxmf4Color);
+			pV->SetColor(pxmf4Color);
 		}
 		if (Indices.size() > 0)
 		{
-			pOutObject->GetMesh(0)->GetVertex()->SetIndices(pIndices);
+			pV->SetIndices(pIndices);
 		}
+
+		Mesh* pM;
+		pM = new Mesh(pd3dDevice, pd3dCommandList, pV);
+		pOutObject->SetMesh(pM);
 	}
 	
 }

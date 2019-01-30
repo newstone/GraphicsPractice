@@ -10,6 +10,11 @@ cbuffer cbCameraInfo : register(b1)
 	float3		    gvCameraPosition;
 };
 
+cbuffer cbObjectInfo : register(b2)
+{
+	matrix		gmtxWorld;
+};
+
 Texture2D gtxtBaseTexture : register(t0);
 
 SamplerState gWrapSamplerState : register(s0);
@@ -23,7 +28,7 @@ struct VS_INPUT
 struct VS_OUTPUT
 {
 	float4 position : SV_POSITION;
-	float3 positionW;
+	float3 positionW : POSITION;
 };
 
 
@@ -37,7 +42,7 @@ VS_OUTPUT VS(VS_INPUT input)
 	return(output);
 }
 
-float4 PS(VS_OUTPUT input)
+float4 PS(VS_OUTPUT input) : SV_Target
 {
 	float4 Color = { 0.3f, 0.6f, 0.3f, 1.0f };
 

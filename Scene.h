@@ -16,7 +16,7 @@ public:
 	~Scene();
 	virtual void BuildObjects(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
 	virtual ID3D12RootSignature *CreateGraphicsRootSignature(ID3D12Device *pd3dDevice);
-	void LoadModel(const string& strPath);
+	void LoadModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath);
 
 	void SetCamera(Camera* pCamera);
 

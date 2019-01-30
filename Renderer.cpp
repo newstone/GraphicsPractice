@@ -16,7 +16,7 @@ void Renderer::CreateRenderer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandLis
 {
 	CreatePipelineState(pd3dDevice, pd3dGraphicsRootSignature);
 	CreateCbvAndSrvDescriptorHeaps(pd3dDevice, pd3dCommandList, 0, 1);
-	CreateShaderResourceViews(pd3dDevice, pd3dCommandList, m_vpMaterials[0]->GetTexture(), 3, true);
+//	CreateShaderResourceViews(pd3dDevice, pd3dCommandList, m_vpMaterials[0]->GetTexture(), 3, true);
 }
 
 void Renderer::CreatePipelineState(ID3D12Device *pd3dDevice, ID3D12RootSignature *pd3dGraphicsRootSignature)

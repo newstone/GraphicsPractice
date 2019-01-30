@@ -31,23 +31,23 @@ int Vertex::GetVertexSize()
 {
 	int nSizeSum(0);
 	
-	if (m_pxmf3Position == nullptr)
+	if (m_pxmf3Position != nullptr)
 	{
 		nSizeSum += sizeof(XMFLOAT3);
 	}
-	if (m_pxmf2UV == nullptr)
+	if (m_pxmf2UV != nullptr)
 	{
 		nSizeSum += sizeof(XMFLOAT2);
 	}
-	if (m_pxmf3Tangent == nullptr)
+	if (m_pxmf3Tangent != nullptr)
 	{
 		nSizeSum += sizeof(XMFLOAT3);
 	}
-	if (m_pxmf3Normal == nullptr)
+	if (m_pxmf3Normal != nullptr)
 	{
 		nSizeSum += sizeof(XMFLOAT3);
 	}
-	if (m_pxmf4Color == nullptr)
+	if (m_pxmf4Color != nullptr)
 	{
 		nSizeSum += sizeof(XMFLOAT4);
 	}
@@ -61,7 +61,7 @@ int Vertex::GetVertexSize()
 
 Mesh::Mesh(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, Vertex* pVertex) : m_pVertex(pVertex)
 {
-	m_nStride = pVertex->GetVertexSize();
+	m_nStride = 12;/*pVertex->GetVertexSize();*/
 	m_nVertices = pVertex->GetVertices();
 
 	m_d3dVertexBuffer = CreateBufferResource(pd3dDevice, pd3dCommandList, pVertex->GetPosition(), m_nStride * m_nVertices

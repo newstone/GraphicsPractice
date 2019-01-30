@@ -12,12 +12,12 @@ Scene::~Scene()
 	delete m_pObject;
 }
 
-void Scene::LoadModel(const string& strPath)
+void Scene::LoadModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath)
 {
 	m_pFBX = new FBX();
 
 	m_pObject = new Object(1);
-	m_pFBX->LoadFBXFile(strPath, m_pObject);
+	m_pFBX->LoadFBXFile(pd3dDevice, pd3dCommandList, strPath, m_pObject);
 }
 
 void Scene::SetCamera(Camera* pCamera)
@@ -32,6 +32,7 @@ void Scene::BuildObjects(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd
 		Renderer* pDR = new DiffuseRenderer();
 		m_pObject->SetRenderer(pDR);
 		m_pObject->CreateRenderer(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get());
+		m_pObject->CreateShaderVariables(pd3dDevice, pd3dCommandList);
 	}
 }
 
@@ -63,9 +64,9 @@ ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice
 	pd3dRootParameters[1].Descriptor.RegisterSpace = 0;
 	pd3dRootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	pd3dRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	pd3dRootParameters[2].DescriptorTable.NumDescriptorRanges = 1; //Object
-	pd3dRootParameters[2].DescriptorTable.pDescriptorRanges = &pd3dDescriptorRanges[0];
+	pd3dRootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	pd3dRootParameters[2].Descriptor.ShaderRegister = 2; //Camera
+	pd3dRootParameters[2].Descriptor.RegisterSpace = 0;
 	pd3dRootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	pd3dRootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
