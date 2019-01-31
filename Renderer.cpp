@@ -261,9 +261,9 @@ void Renderer::OnPrepareForRender(ID3D12GraphicsCommandList * pd3dCommandList)
 {
 	pd3dCommandList->SetPipelineState(m_d3dPipelineStates.Get());
 
-	pd3dCommandList->SetDescriptorHeaps(1, &m_d3dDescriptorHeap);
+	//pd3dCommandList->SetDescriptorHeaps(1, &m_d3dDescriptorHeap);
 
-	pd3dCommandList->SetGraphicsRootDescriptorTable(3, m_vpMaterials[0]->GetTexture()->GetArgumentInfos(0).m_d3dSrvGpuDescriptorHandle);
+	//pd3dCommandList->SetGraphicsRootDescriptorTable(3, m_vpMaterials[0]->GetTexture()->GetArgumentInfos(0).m_d3dSrvGpuDescriptorHandle);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

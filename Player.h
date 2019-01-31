@@ -40,7 +40,7 @@ public:
 	}
 
 	const XMFLOAT3& GetLookVector() { return(m_xmf3Look); }
-	const XMFLOAT3& GetUpVector() { return(m_xmf3Up); }
+	XMFLOAT3& GetUpVector() { return(m_xmf3Up); }
 	const XMFLOAT3& GetRightVector() { return(m_xmf3Right); }
 	XMFLOAT3 GetPosition() { return m_xmf3Position; }
 

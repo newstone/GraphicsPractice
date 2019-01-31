@@ -11,42 +11,43 @@ struct CameraInfo
 
 class Camera
 {
-	CameraInfo m_CameraInfo;
-	CameraInfo* m_pcbMappedCamera;
-
-	D3D12_VIEWPORT					m_d3dViewport;
-	D3D12_RECT						m_d3dScissorRect;
-
-	ID3D12Resource					*m_pd3dcbCamera;
-
-	XMFLOAT3 m_xmf3Look;
-	XMFLOAT3 m_xmf3Right;
-	XMFLOAT3 m_xmf3Up;
-
-	XMFLOAT3	m_xmf3LookAtWorld;
-
-	Player* m_pPlayer;
 public:
 	Camera();
-	~Camera();
+	virtual ~Camera();
 
-	inline XMFLOAT4X4 PerspectiveFovLH(float FovAngleY, float AspectRatio, float NearZ, float FarZ);
+	XMFLOAT3					m_xmf3Position;
+	XMFLOAT3					m_xmf3Right;
+	XMFLOAT3					m_xmf3Up;
+	XMFLOAT3					m_xmf3Look;
 
-	void SetViewport(int xTopLeft, int yTopLeft, int nWidth, int nHeight, float fMinZ, float fMaxZ);
-	void SetScissorRect(LONG xLeft, LONG yTop, LONG xRight, LONG yBottom);
+	XMFLOAT4X4					m_xmf4x4View;
+	XMFLOAT4X4					m_xmf4x4Projection;
+	XMFLOAT4X4					m_xmf4x4ViewProject;
 
-	void GenerateProjectionMatrix(float fNearPlaneDistance, float fFarPlaneDistance, float fAspectRatio, float fFOVAngle);
-	void GenerateViewMatrix(XMFLOAT3 xmf3Position, XMFLOAT3 xmf3LookAt, XMFLOAT3 xmf3Up);
+	D3D12_VIEWPORT					m_Viewport;
+	D3D12_RECT						m_d3dScissorRect;
+
+	ID3D12Resource					*m_pd3dcbCamera = nullptr;
+	CameraInfo				*m_pcbMappedCamera = nullptr;
+	virtual void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
+	virtual void UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList);
+
 	void GenerateViewMatrix();
-	void RegenerateViewMatrix();
-	void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
-	void UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList);
+	void GenerateProjectionMatrix(float fNearPlaneDistance, float fFarPlaneDistance, float fFOVAngle);
+	void SetViewport(int xStart, int yStart, int nWidth, int nHeight);
 	void SetViewportsAndScissorRects(ID3D12GraphicsCommandList *pd3dCommandList);
-	
-	virtual void Move(const XMFLOAT3& xmf3Shift) { m_CameraInfo.m_xmf3CameraPosition.x += xmf3Shift.x; m_CameraInfo.m_xmf3CameraPosition.y += xmf3Shift.y; m_CameraInfo.m_xmf3CameraPosition.z += xmf3Shift.z; }
-	void Rotate(float x, float y, float z);
+	void SetScissorRect(LONG xLeft, LONG yTop, LONG xRight, LONG yBottom);
+	void SetLookAt(XMFLOAT3& xmf3LookAt, XMFLOAT3& xmf3Up);
+	void SetLookAt(XMFLOAT3& vPosition, XMFLOAT3& xmf3LookAt, XMFLOAT3& xmf3Up);
 
-	const D3D12_VIEWPORT* GetViewport() { return(&m_d3dViewport); }
+	void Move(const XMFLOAT3& xmf3Shift);
+	void Move(float x, float y, float z);
+	void Rotate(float fPitch = 0.0f, float fYaw = 0.0f, float fRoll = 0.0f);
+
+	XMFLOAT4X4 GetViewMatrix() { return(m_xmf4x4View); }
+	XMFLOAT4X4 GetProjectionMatrix() { return(m_xmf4x4Projection); }
+	const D3D12_VIEWPORT* GetViewport() { return(&m_Viewport); }
 	const D3D12_RECT* GetScissorRect() { return(&m_d3dScissorRect); }
-};
 
+	void Update(Player *pPlayer, XMFLOAT3& xmf3LookAt, float fTimeElapsed = 0.016f);
+};

@@ -2,35 +2,57 @@
 #include "Player.h"
 #include "Camera.h"
 
-inline XMFLOAT4X4 Camera::PerspectiveFovLH(float FovAngleY, float AspectRatio, float NearZ, float FarZ)
+Camera::Camera()
 {
-	XMFLOAT4X4 xmmtx4x4Result;
-	XMStoreFloat4x4(&xmmtx4x4Result, XMMatrixPerspectiveFovLH(FovAngleY, AspectRatio, NearZ, FarZ));
-	return(xmmtx4x4Result);
-}
-/////////////////////////////////////////////////////////////////////////////////////////
+	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	m_xmf3Right = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	m_xmf3Up = XMFLOAT3(0.0f, 1.0f, 0.0f);
+	m_xmf3Look = XMFLOAT3(0.0f, 0.0f, 1.0f);
 
-Camera::Camera() : m_pd3dcbCamera(nullptr)
-{
-	m_d3dViewport = { 0, 0, FRAME_BUFFER_WIDTH , FRAME_BUFFER_HEIGHT, 0.0f, 1.0f };
+	m_xmf4x4View = Matrix4x4::Identity();
+	m_xmf4x4Projection = Matrix4x4::Identity();
+	m_xmf4x4ViewProject = Matrix4x4::Identity();
+
 	m_d3dScissorRect = { 0, 0, FRAME_BUFFER_WIDTH , FRAME_BUFFER_HEIGHT };
+	m_Viewport.TopLeftX = 0;
+	m_Viewport.TopLeftY = 0;
+	m_Viewport.Width = 640;
+	m_Viewport.Height = 480;
 }
-
 
 Camera::~Camera()
 {
 }
-
-void Camera::SetViewport(int xTopLeft, int yTopLeft, int nWidth, int nHeight, float fMinZ, float fMaxZ)
+void Camera::CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
 {
-	m_d3dViewport.TopLeftX = float(xTopLeft);
-	m_d3dViewport.TopLeftY = float(yTopLeft);
-	m_d3dViewport.Width = float(nWidth);
-	m_d3dViewport.Height = float(nHeight);
-	m_d3dViewport.MinDepth = fMinZ;
-	m_d3dViewport.MaxDepth = fMaxZ;
-}
+	UINT ncbElementBytes = ((sizeof(CameraInfo) + 255) & ~255); //256의 배수
+	m_pd3dcbCamera = Mesh::CreateBufferResource(pd3dDevice, pd3dCommandList, NULL, ncbElementBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, NULL);
 
+	m_pd3dcbCamera->Map(0, NULL, (void **)&m_pcbMappedCamera);
+}
+void Camera::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList)
+{
+	XMStoreFloat4x4(&m_pcbMappedCamera->m_xmf4x4View, XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4View)));
+	XMStoreFloat4x4(&m_pcbMappedCamera->m_xmf4x4Projection, XMMatrixTranspose(XMLoadFloat4x4(&m_xmf4x4Projection)));
+	::memcpy(&m_pcbMappedCamera->m_xmf3CameraPosition, &m_xmf3Position, sizeof(XMFLOAT3));
+
+	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = m_pd3dcbCamera->GetGPUVirtualAddress();
+	pd3dCommandList->SetGraphicsRootConstantBufferView(1, d3dGpuVirtualAddress);
+}
+void Camera::GenerateViewMatrix()
+{
+	m_xmf3Look = Vector3::Normalize(m_xmf3Look);
+	m_xmf3Right = Vector3::Normalize(Vector3::CrossProduct(m_xmf3Up, m_xmf3Look));
+	m_xmf3Up = Vector3::Normalize(Vector3::CrossProduct(m_xmf3Look, m_xmf3Right));
+	m_xmf4x4View._11 = m_xmf3Right.x; m_xmf4x4View._12 = m_xmf3Up.x; m_xmf4x4View._13 = m_xmf3Look.x;
+	m_xmf4x4View._21 = m_xmf3Right.y; m_xmf4x4View._22 = m_xmf3Up.y; m_xmf4x4View._23 = m_xmf3Look.y;
+	m_xmf4x4View._31 = m_xmf3Right.z; m_xmf4x4View._32 = m_xmf3Up.z; m_xmf4x4View._33 = m_xmf3Look.z;
+	m_xmf4x4View._41 = -Vector3::DotProduct(m_xmf3Position, m_xmf3Right);
+	m_xmf4x4View._42 = -Vector3::DotProduct(m_xmf3Position, m_xmf3Up);
+	m_xmf4x4View._43 = -Vector3::DotProduct(m_xmf3Position, m_xmf3Look);
+
+	m_xmf4x4ViewProject = Matrix4x4::Multiply(m_xmf4x4View, m_xmf4x4Projection);
+}
 void Camera::SetScissorRect(LONG xLeft, LONG yTop, LONG xRight, LONG yBottom)
 {
 	m_d3dScissorRect.left = xLeft;
@@ -40,92 +62,92 @@ void Camera::SetScissorRect(LONG xLeft, LONG yTop, LONG xRight, LONG yBottom)
 }
 void Camera::SetViewportsAndScissorRects(ID3D12GraphicsCommandList *pd3dCommandList)
 {
-	pd3dCommandList->RSSetViewports(1, &m_d3dViewport);
+	pd3dCommandList->RSSetViewports(1, &m_Viewport);
 	pd3dCommandList->RSSetScissorRects(1, &m_d3dScissorRect);
 }
-void Camera::GenerateProjectionMatrix(float fNearPlaneDistance, float fFarPlaneDistance, float fAspectRatio, float fFOVAngle)
+void Camera::SetLookAt(XMFLOAT3& xmf3Position, XMFLOAT3& xmf3LookAt, XMFLOAT3& xmf3Up)
 {
-	m_CameraInfo.m_xmf4x4Projection = PerspectiveFovLH(XMConvertToRadians(fFOVAngle), fAspectRatio, fNearPlaneDistance, fFarPlaneDistance);
+	m_xmf3Position = xmf3Position;
+	m_xmf4x4View = Matrix4x4::LookAtLH(m_xmf3Position, xmf3LookAt, xmf3Up);
+	m_xmf3Right = Vector3::Normalize(XMFLOAT3(m_xmf4x4View._11, m_xmf4x4View._21, m_xmf4x4View._31));
+	m_xmf3Up = Vector3::Normalize(XMFLOAT3(m_xmf4x4View._12, m_xmf4x4View._22, m_xmf4x4View._32));
+	m_xmf3Look = Vector3::Normalize(XMFLOAT3(m_xmf4x4View._13, m_xmf4x4View._23, m_xmf4x4View._33));
 }
 
-void Camera::GenerateViewMatrix(XMFLOAT3 xmf3Position, XMFLOAT3 xmf3LookAt, XMFLOAT3 xmf3Up)
+void Camera::SetLookAt(XMFLOAT3& xmf3LookAt, XMFLOAT3& xmf3Up)
 {
-	m_CameraInfo.m_xmf3CameraPosition = xmf3Position;
-	m_xmf3LookAtWorld = xmf3LookAt;
-	m_xmf3Up = xmf3Up;
-
-	GenerateViewMatrix();
+	XMFLOAT4X4 xmf4x4View = Matrix4x4::LookAtLH(m_xmf3Position, xmf3LookAt, xmf3Up);
+	m_xmf3Right = Vector3::Normalize(XMFLOAT3(xmf4x4View._11, xmf4x4View._21, xmf4x4View._31));
+	m_xmf3Up = Vector3::Normalize(XMFLOAT3(xmf4x4View._12, xmf4x4View._22, xmf4x4View._32));
+	m_xmf3Look = Vector3::Normalize(XMFLOAT3(xmf4x4View._13, xmf4x4View._23, xmf4x4View._33));
 }
 
-void Camera::GenerateViewMatrix()
+void Camera::SetViewport(int xTopLeft, int yTopLeft, int nWidth, int nHeight)
 {
-	m_CameraInfo.m_xmf4x4View = Matrix4x4::LookAtLH(m_CameraInfo.m_xmf3CameraPosition, m_xmf3LookAtWorld, m_xmf3Up);
+	m_Viewport.TopLeftX = xTopLeft;
+	m_Viewport.TopLeftY = yTopLeft;
+	m_Viewport.Width = nWidth;
+	m_Viewport.Height = nHeight;
 }
 
-void Camera::RegenerateViewMatrix()
+void Camera::GenerateProjectionMatrix(float fNearPlaneDistance, float fFarPlaneDistance, float fFOVAngle)
 {
-	m_xmf3Look = Vector3::Normalize(m_xmf3Look);
-	m_xmf3Right = Vector3::CrossProduct(m_xmf3Up, m_xmf3Look, true);
-	m_xmf3Up = Vector3::CrossProduct(m_xmf3Look, m_xmf3Right, true);
-
-	m_CameraInfo.m_xmf4x4View._11 = m_xmf3Right.x; m_CameraInfo.m_xmf4x4View._12 = m_xmf3Up.x; m_CameraInfo.m_xmf4x4View._13 = m_xmf3Look.x;
-	m_CameraInfo.m_xmf4x4View._21 = m_xmf3Right.y; m_CameraInfo.m_xmf4x4View._22 = m_xmf3Up.y; m_CameraInfo.m_xmf4x4View._23 = m_xmf3Look.y;
-	m_CameraInfo.m_xmf4x4View._31 = m_xmf3Right.z; m_CameraInfo.m_xmf4x4View._32 = m_xmf3Up.z; m_CameraInfo.m_xmf4x4View._33 = m_xmf3Look.z;
-	m_CameraInfo.m_xmf4x4View._41 = -Vector3::DotProduct(m_CameraInfo.m_xmf3CameraPosition, m_xmf3Right);
-	m_CameraInfo.m_xmf4x4View._42 = -Vector3::DotProduct(m_CameraInfo.m_xmf3CameraPosition, m_xmf3Up);
-	m_CameraInfo.m_xmf4x4View._43 = -Vector3::DotProduct(m_CameraInfo.m_xmf3CameraPosition, m_xmf3Look);
+	float fAspectRatio = (float(m_Viewport.Width) / float(m_Viewport.Height));
+	m_xmf4x4Projection = Matrix4x4::PerspectiveFovLH(fFOVAngle, fAspectRatio, fNearPlaneDistance, fFarPlaneDistance);
 }
 
-void Camera::CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
+void Camera::Move(const XMFLOAT3& xmf3Shift)
 {
-	UINT ncbElementBytes = ((sizeof(CameraInfo) + 255) & ~255); //256의 배수
-	m_pd3dcbCamera = Mesh::CreateBufferResource(pd3dDevice, pd3dCommandList, NULL, ncbElementBytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, NULL);
-
-	m_pd3dcbCamera->Map(0, NULL, (void **)&m_pcbMappedCamera);
+	m_xmf3Position = Vector3::Add(m_xmf3Position, xmf3Shift);
 }
 
-void Camera::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList)
+void Camera::Move(float x, float y, float z)
 {
-	XMStoreFloat4x4(&m_pcbMappedCamera->m_xmf4x4View, XMMatrixTranspose(XMLoadFloat4x4(&m_CameraInfo.m_xmf4x4View)));
-	XMStoreFloat4x4(&m_pcbMappedCamera->m_xmf4x4Projection, XMMatrixTranspose(XMLoadFloat4x4(&m_CameraInfo.m_xmf4x4Projection)));
-	::memcpy(&m_pcbMappedCamera->m_xmf3CameraPosition, &m_CameraInfo.m_xmf3CameraPosition, sizeof(XMFLOAT3));
-
-	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = m_pd3dcbCamera->GetGPUVirtualAddress();
-	pd3dCommandList->SetGraphicsRootConstantBufferView(1, d3dGpuVirtualAddress);
+	Move(XMFLOAT3(x, y, z));
 }
-void Camera::Rotate(float x, float y, float z)
+
+void Camera::Rotate(float fPitch, float fYaw, float fRoll)
 {
-	if (m_pPlayer && (x != 0.0f))
+	if (fPitch != 0.0f)
 	{
-		XMFLOAT3 xmf3Right = m_pPlayer->GetRightVector();
-		XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&xmf3Right), XMConvertToRadians(x));
-		m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
-		m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, xmmtxRotate);
-		m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
-		m_CameraInfo.m_xmf3CameraPosition = Vector3::Subtract(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
-		m_CameraInfo.m_xmf3CameraPosition = Vector3::TransformCoord(m_CameraInfo.m_xmf3CameraPosition, xmmtxRotate);
-		m_CameraInfo.m_xmf3CameraPosition = Vector3::Add(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
+		XMMATRIX mtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3Right), XMConvertToRadians(fPitch));
+		m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, mtxRotate);
+		m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, mtxRotate);
 	}
-	if (m_pPlayer && (y != 0.0f))
+	if (fYaw != 0.0f)
 	{
-		XMFLOAT3 xmf3Up = m_pPlayer->GetUpVector();
-		XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&xmf3Up), XMConvertToRadians(y));
-		m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
-		m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, xmmtxRotate);
-		m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
-		m_CameraInfo.m_xmf3CameraPosition = Vector3::Subtract(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
-		m_CameraInfo.m_xmf3CameraPosition = Vector3::TransformCoord(m_CameraInfo.m_xmf3CameraPosition, xmmtxRotate);
-		m_CameraInfo.m_xmf3CameraPosition = Vector3::Add(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
+		XMMATRIX mtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3Up), XMConvertToRadians(fYaw));
+		m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, mtxRotate);
+		m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, mtxRotate);
 	}
-	if (m_pPlayer && (z != 0.0f))
+	if (fRoll != 0.0f)
 	{
-		XMFLOAT3 xmf3Look = m_pPlayer->GetLookVector();
-		XMMATRIX xmmtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&xmf3Look), XMConvertToRadians(z));
-		m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, xmmtxRotate);
-		m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, xmmtxRotate);
-		m_xmf3Look = Vector3::TransformNormal(m_xmf3Look, xmmtxRotate);
-		m_CameraInfo.m_xmf3CameraPosition = Vector3::Subtract(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
-		m_CameraInfo.m_xmf3CameraPosition = Vector3::TransformCoord(m_CameraInfo.m_xmf3CameraPosition, xmmtxRotate);
-		m_CameraInfo.m_xmf3CameraPosition = Vector3::Add(m_CameraInfo.m_xmf3CameraPosition, m_pPlayer->GetPosition());
+		XMMATRIX mtxRotate = XMMatrixRotationAxis(XMLoadFloat3(&m_xmf3Look), XMConvertToRadians(fRoll));
+		m_xmf3Up = Vector3::TransformNormal(m_xmf3Up, mtxRotate);
+		m_xmf3Right = Vector3::TransformNormal(m_xmf3Right, mtxRotate);
+	}
+}
+
+void Camera::Update(Player *pPlayer, XMFLOAT3& xmf3LookAt, float fTimeElapsed)
+{
+	XMFLOAT4X4 mtxRotate = Matrix4x4::Identity();
+	mtxRotate._11 = pPlayer->GetRightVector().x; mtxRotate._21 = pPlayer->GetUpVector().x; mtxRotate._31 = pPlayer->GetLookVector().x;
+	mtxRotate._12 = pPlayer->GetRightVector().y; mtxRotate._22 = pPlayer->GetUpVector().y; mtxRotate._32 = pPlayer->GetLookVector().y;
+	mtxRotate._13 = pPlayer->GetRightVector().z; mtxRotate._23 = pPlayer->GetUpVector().z; mtxRotate._33 = pPlayer->GetLookVector().z;
+
+	XMFLOAT3 xmf3Offset = Vector3::TransformCoord(XMFLOAT3(0.0f, 0.0f, 0.0f), mtxRotate);
+	XMFLOAT3 xmf3Position = Vector3::Add(pPlayer->GetPosition(), xmf3Offset);
+	XMFLOAT3 xmf3Direction = Vector3::Subtract(xmf3Position, m_xmf3Position);
+	float fLength = Vector3::Length(xmf3Direction);
+	xmf3Direction = Vector3::Normalize(xmf3Direction);
+
+	float fTimeLagScale = fTimeElapsed * (1.0f / 0.25f);
+	float fDistance = fLength * fTimeLagScale;
+	if (fDistance > fLength) fDistance = fLength;
+	if (fLength < 0.01f) fDistance = fLength;
+	if (fDistance > 0)
+	{
+		m_xmf3Position = Vector3::Add(m_xmf3Position, xmf3Direction, fDistance);
+		SetLookAt(pPlayer->GetPosition(), pPlayer->GetUpVector());
 	}
 }

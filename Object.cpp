@@ -47,11 +47,13 @@ D3D12_SHADER_RESOURCE_VIEW_DESC Material::GetShaderResourceViewDesc(D3D12_RESOUR
 Object::Object() : m_nMeshes(0), m_nMeshIndex(0)
 {
 	XMStoreFloat4x4(&m_ObjectInfo.xmf4x4World, XMMatrixIdentity());
+	m_ObjectInfo.xmf4x4World._11 = m_ObjectInfo.xmf4x4World._22 = m_ObjectInfo.xmf4x4World._33 = 30.0f;
 	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 Object::Object(int nMeshes) : m_nMeshes(nMeshes), m_nMeshIndex(0)
 {
 	XMStoreFloat4x4(&m_ObjectInfo.xmf4x4World, XMMatrixIdentity());
+	m_ObjectInfo.xmf4x4World._11 = m_ObjectInfo.xmf4x4World._22 = m_ObjectInfo.xmf4x4World._33 = 30.0f;
 	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 
@@ -119,7 +121,7 @@ Mesh* Object::GetMesh(int nIndex)
 void Object::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	UpdateShaderVariables(pd3dCommandList, 2);
-	//m_vpRenderer[0]->OnPrepareForRender(pd3dCommandList);
+	m_vpRenderer[0]->OnPrepareForRender(pd3dCommandList);
 	m_vpMeshes[0]->Render(pd3dCommandList);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

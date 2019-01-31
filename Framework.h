@@ -62,6 +62,9 @@ public:
 	void WaitForGpuComplete(); 
 	void MoveToNextFrame();
 
+	LRESULT CALLBACK OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
+	void OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
+	void OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	void ProcessInput();
 	void Update();
 	void Run();
