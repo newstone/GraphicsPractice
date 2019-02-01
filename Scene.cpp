@@ -137,6 +137,9 @@ void Scene::Render(ID3D12GraphicsCommandList *pd3dCommandList)
 {
 	pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get());
 	
+	m_pCamera->SetViewportsAndScissorRects(pd3dCommandList);
+	m_pCamera->UpdateShaderVariables(pd3dCommandList);
+
 	if(m_pObject != nullptr)
 		m_pObject->Render(pd3dCommandList);
 }

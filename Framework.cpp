@@ -122,6 +122,7 @@ void Framework::BuildScene()
 	{
 		m_pCamera->CreateShaderVariables(m_d3dDevice.Get(), m_d3dCommandList.Get());
 		m_pPlayer->SetCamera(m_pCamera);
+		m_pScene->SetCamera(m_pCamera);
 	}
 }
 
@@ -382,14 +383,13 @@ void Framework::ProcessInput()
 				m_pPlayer->Rotate(cyDelta, cxDelta, 0.0f);
 		}
 		if (dwDirection) 
-			m_pPlayer->Move(dwDirection, 0.005f, true);
+			m_pPlayer->Move(dwDirection, 0.005f, false);
 	}
 
 	m_pPlayer->Update(0.01f);
 }
 void Framework::Update()
 {
-	m_pCamera->UpdateShaderVariables(m_d3dCommandList.Get());
 }
 void Framework::Run()
 {
@@ -413,7 +413,7 @@ void Framework::Run()
 
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dDsvCPUDescriptorHandle = m_d3dDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	m_d3dCommandList->ClearDepthStencilView(d3dDsvCPUDescriptorHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, NULL);
-	m_d3dCommandList->OMSetRenderTargets(1, &d3dRtvCPUDescriptorHandle, TRUE, &d3dDsvCPUDescriptorHandle);
+	m_d3dCommandList->OMSetRenderTargets(1, &d3dRtvCPUDescriptorHandle, true, &d3dDsvCPUDescriptorHandle);
 	// ±×¸®±â
 	m_pScene->Render(m_d3dCommandList.Get());
 

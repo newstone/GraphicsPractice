@@ -47,13 +47,13 @@ D3D12_SHADER_RESOURCE_VIEW_DESC Material::GetShaderResourceViewDesc(D3D12_RESOUR
 Object::Object() : m_nMeshes(0), m_nMeshIndex(0)
 {
 	XMStoreFloat4x4(&m_ObjectInfo.xmf4x4World, XMMatrixIdentity());
-	m_ObjectInfo.xmf4x4World._11 = m_ObjectInfo.xmf4x4World._22 = m_ObjectInfo.xmf4x4World._33 = 30.0f;
+	m_ObjectInfo.xmf4x4World._11 = m_ObjectInfo.xmf4x4World._22 = m_ObjectInfo.xmf4x4World._33 = 3.0f;
 	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 Object::Object(int nMeshes) : m_nMeshes(nMeshes), m_nMeshIndex(0)
 {
 	XMStoreFloat4x4(&m_ObjectInfo.xmf4x4World, XMMatrixIdentity());
-	m_ObjectInfo.xmf4x4World._11 = m_ObjectInfo.xmf4x4World._22 = m_ObjectInfo.xmf4x4World._33 = 30.0f;
+	m_ObjectInfo.xmf4x4World._11 = m_ObjectInfo.xmf4x4World._22 = m_ObjectInfo.xmf4x4World._33 = 3.0f;
 	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
 }
 
@@ -78,10 +78,9 @@ void Object::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList, U
 {
 	UINT ncbElementBytes = ((sizeof(OBJECT_INFO) + 255) & ~255);
 
-	pd3dCommandList->SetGraphicsRootShaderResourceView(RootParameterIndex, m_d3dcbObjects->GetGPUVirtualAddress());
-	OBJECT_INFO *pbMappedcbGameObject = (OBJECT_INFO *)((UINT8 *)m_pMappedObjectInfo);
-		
-	XMStoreFloat4x4(&pbMappedcbGameObject->xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_ObjectInfo.xmf4x4World)));
+	XMStoreFloat4x4(&m_pMappedObjectInfo->xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_ObjectInfo.xmf4x4World)));
+
+	pd3dCommandList->SetGraphicsRootConstantBufferView(RootParameterIndex, m_d3dcbObjects->GetGPUVirtualAddress());
 }
 void Object::CreateRenderer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature)
 {

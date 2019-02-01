@@ -18,6 +18,8 @@ Camera::Camera()
 	m_Viewport.TopLeftY = 0;
 	m_Viewport.Width = 640;
 	m_Viewport.Height = 480;
+
+	GenerateProjectionMatrix(1.01f, 50000.0f, 60.0f);
 }
 
 Camera::~Camera()
@@ -92,8 +94,7 @@ void Camera::SetViewport(int xTopLeft, int yTopLeft, int nWidth, int nHeight)
 
 void Camera::GenerateProjectionMatrix(float fNearPlaneDistance, float fFarPlaneDistance, float fFOVAngle)
 {
-	float fAspectRatio = (float(m_Viewport.Width) / float(m_Viewport.Height));
-	m_xmf4x4Projection = Matrix4x4::PerspectiveFovLH(fFOVAngle, fAspectRatio, fNearPlaneDistance, fFarPlaneDistance);
+	m_xmf4x4Projection = Matrix4x4::PerspectiveFovLH(XMConvertToRadians(fFOVAngle), ASPECT_RATIO, fNearPlaneDistance, fFarPlaneDistance);
 }
 
 void Camera::Move(const XMFLOAT3& xmf3Shift)

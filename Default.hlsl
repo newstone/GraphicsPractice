@@ -44,7 +44,7 @@ VS_OUTPUT VS(VS_INPUT input)
 
 float4 PS(VS_OUTPUT input) : SV_Target
 {
-	float4 Color = { 0.3f, 0.6f, 0.3f, 1.0f };
+	float4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 	return Color;
 }
