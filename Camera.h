@@ -6,7 +6,7 @@ struct CameraInfo
 {
 	XMFLOAT4X4 m_xmf4x4View;
 	XMFLOAT4X4 m_xmf4x4Projection;
-	XMFLOAT3						    m_xmf3CameraPosition;
+	XMFLOAT3	m_xmf3CameraPosition;
 };
 
 class Camera

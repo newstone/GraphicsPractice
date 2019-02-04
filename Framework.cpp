@@ -23,7 +23,6 @@ void Framework::OnCreate(HWND hMainWnd)
 	CreateQueue();
 	CreateDescriptHeap();
 	CreateSwapChain();
-	OnResizeBackBuffers();
 
 	BuildScene();
 }
@@ -106,6 +105,9 @@ void Framework::CreateDescriptHeap()
 
 void Framework::BuildScene()
 {
+	HRESULT hresult(m_d3dCommandAllocator->Reset());
+	hresult = m_d3dCommandList->Reset(m_d3dCommandAllocator.Get(), nullptr);
+
 	m_pScene = new Scene();
 	m_pScene->CreateGraphicsRootSignature(m_d3dDevice.Get());
 	
@@ -124,6 +126,12 @@ void Framework::BuildScene()
 		m_pPlayer->SetCamera(m_pCamera);
 		m_pScene->SetCamera(m_pCamera);
 	}
+
+	m_d3dCommandList->Close();
+	ID3D12CommandList* ppCommandLists[] = { m_d3dCommandList.Get() };
+	m_d3dCommandQueue->ExecuteCommandLists(1, ppCommandLists);
+
+	WaitForGpuComplete();
 }
 
 void Framework::CreateSwapChainRenderTargetViews()
@@ -286,6 +294,10 @@ LRESULT CALLBACK Framework::OnProcessingWindowMessage(HWND hWnd, UINT nMessageID
 	}
 	case WM_SIZE:
 	{
+		m_nWndClientWidth = LOWORD(lParam);
+		m_nWndClientHeight = HIWORD(lParam);
+
+		OnResizeBackBuffers();
 		break;
 	}
 	case WM_LBUTTONDOWN:
@@ -383,7 +395,7 @@ void Framework::ProcessInput()
 				m_pPlayer->Rotate(cyDelta, cxDelta, 0.0f);
 		}
 		if (dwDirection) 
-			m_pPlayer->Move(dwDirection, 0.005f, false);
+			m_pPlayer->Move(dwDirection, 0.5f, false);
 	}
 
 	m_pPlayer->Update(0.01f);
@@ -408,7 +420,7 @@ void Framework::Run()
 
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dRtvCPUDescriptorHandle = m_d3dRtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	d3dRtvCPUDescriptorHandle.ptr += (m_nSwapChainBufferIndex * m_nRtvDescriptorIncrementSize);
-	float pfClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f };
+	float pfClearColor[4] = { 0.125f, 0.125f, 0.3f, 1.0f };
 	m_d3dCommandList->ClearRenderTargetView(d3dRtvCPUDescriptorHandle, pfClearColor, 0, nullptr);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dDsvCPUDescriptorHandle = m_d3dDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -423,11 +435,11 @@ void Framework::Run()
 
 	m_d3dCommandList->Close();
 	ID3D12CommandList* ppCommandLists[] = { m_d3dCommandList.Get() };
-	m_d3dCommandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+	m_d3dCommandQueue->ExecuteCommandLists(1, ppCommandLists);
 
 	WaitForGpuComplete();
 
-	m_dxgiSwapChain->Present(1, 0);
+	m_dxgiSwapChain->Present(0, 0);
 
 	MoveToNextFrame();
 }

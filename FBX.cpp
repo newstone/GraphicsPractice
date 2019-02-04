@@ -195,6 +195,7 @@ void FBX::GetUV(FbxMesh* pFbxMesh, vector<XMFLOAT2>& xmf3UV)
 				{
 					// build the max index array that we need to pass into MakePoly
 					const int lPolySize = pFbxMesh->GetPolygonSize(lPolyIndex);
+
 					for (int lVertIndex = 0; lVertIndex < lPolySize; ++lVertIndex)
 					{
 						FbxVector2 lUVValue;
@@ -252,22 +253,23 @@ void FBX::GetUV(FbxMesh* pFbxMesh, vector<XMFLOAT2>& xmf3UV)
 	}
 }
 
-void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pNode, Object* pOutObject)
+
+void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pRootNode, Object* pOutObject)
 {
-	if (pNode == nullptr)
+	if (pRootNode == nullptr)
 		return;
 
 	stack<FbxMesh*> fbxMeshes;
 	stack<FbxNode*> fbxAllNode;
 
-	fbxAllNode.push(pNode);
+	fbxAllNode.push(pRootNode);
 
 	while (1)
 	{
 		if (fbxAllNode.empty())
 			break;
 
-		FbxNode* pFbxNode =  fbxAllNode.top();
+		FbxNode* pFbxNode = fbxAllNode.top();
 		fbxAllNode.pop();
 
 		FbxMesh* pFM = pFbxNode->GetMesh();
@@ -280,116 +282,323 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 		}
 	}
 
-	vector<XMFLOAT3> xmf3Position;
-	vector<XMFLOAT2> xmf2UV;
-	vector<XMFLOAT3> xmf3Tangent;
-	vector<XMFLOAT3> xmf3Normal;
-	vector<XMFLOAT4> xmf4Color;
-
-	vector<UINT> Indices;
-
-	FbxMesh* pFbxMesh = fbxMeshes.top();
-
-	if (pFbxMesh == nullptr)
-		return;
-
-	GetPosition(pFbxMesh, xmf3Position);
-	GetNormal(pFbxMesh, xmf3Normal);
-	GetTangent(pFbxMesh, xmf3Tangent);
-	GetUV(pFbxMesh, xmf2UV);
-
-	if (xmf3Position.size() > 0)
+	//while (true)
 	{
-		Vertex* pV;
-		UINT nVertices(xmf3Position.size());
-		UINT nIndices(Indices.size());
+	//	if (fbxMeshes.empty())
+		//	break;
 
-		XMFLOAT3* pxmf3Position = new XMFLOAT3[nVertices];
-		XMFLOAT2* pxmf2UV(nullptr);
-		XMFLOAT3* pxmf3Tangent(nullptr);
-		XMFLOAT3* pxmf3Normal(nullptr);
-		XMFLOAT4* pxmf4Color(nullptr);
-		UINT* pIndices(nullptr);
+		vector<XMFLOAT3> xmf3Position;
+		vector<XMFLOAT2> xmf2UV;
+		vector<XMFLOAT3> xmf3Tangent;
+		vector<XMFLOAT3> xmf3Normal;
+		vector<XMFLOAT3> xmf3Binormal;
+		vector<XMFLOAT4> xmf4Color;
 
-		if (xmf2UV.size() > 0)
+		vector<UINT> Indices;
+
+		FbxMesh* pFbxMesh = fbxMeshes.top();
+		fbxMeshes.pop();
+
+		if (pFbxMesh == nullptr)
+			return;
+		
+		int nTriangleCount = pFbxMesh->GetPolygonCount();
+		int nVertexCounter = 0;
+		
+		for (unsigned int i = 0; i < nTriangleCount; ++i)
 		{
-			pxmf2UV = new XMFLOAT2[nVertices];
-		}
-		if (xmf3Tangent.size() > 0)
-		{
-			pxmf3Tangent = new XMFLOAT3[nVertices];
-		}
-		if (xmf3Normal.size() > 0)
-		{
-			pxmf3Normal = new XMFLOAT3[nVertices];
-		}
-		if (xmf4Color.size() > 0)
-		{
-			pxmf4Color = new XMFLOAT4[nVertices];
-		}
-		if (Indices.size() > 0)
-		{
-			pIndices = new UINT[nVertices];
+			for (unsigned int j = 0; j < 3; ++j)
+			{
+				FbxVector4* pControlPoints = pFbxMesh->GetControlPoints();
+				int nControlPointIndex = pFbxMesh->GetPolygonVertex(i, j);
+
+				xmf3Position.push_back(XMFLOAT3(pControlPoints[nControlPointIndex].mData[0], pControlPoints[nControlPointIndex].mData[1], pControlPoints[nControlPointIndex].mData[2]));
+
+				for (int l = 0; l < 1/*pFbxMesh->GetElementUVCount()*/; ++l)
+				{
+					GetUV(pFbxMesh, xmf2UV, l, i, j);
+				}
+				GetNormal(pFbxMesh, xmf3Normal, nVertexCounter, i, j);
+				GetTangent(pFbxMesh, xmf3Tangent, nVertexCounter, i, j);
+				GetBiNormal(pFbxMesh, xmf3Binormal, nVertexCounter, i, j);
+			}
 		}
 
-
-		for (int i = 0; i < nVertices; i++)
+		if (xmf3Position.size() > 0)
 		{
-			pxmf3Position[i] = xmf3Position[i];
+			Vertex* pV;
+			UINT nVertices(xmf3Position.size());
+			UINT nIndices(Indices.size());
+
+			XMFLOAT3* pxmf3Position = new XMFLOAT3[nVertices];
+			XMFLOAT2* pxmf2UV(nullptr);
+			XMFLOAT3* pxmf3Tangent(nullptr);
+			XMFLOAT3* pxmf3Normal(nullptr);
+			XMFLOAT3* pxmf3Binormal(nullptr);
+			XMFLOAT4* pxmf4Color(nullptr);
+			UINT* pIndices(nullptr);
 
 			if (xmf2UV.size() > 0)
 			{
-				pxmf2UV[i] = xmf2UV[i];
+				pxmf2UV = new XMFLOAT2[nVertices];
 			}
 			if (xmf3Tangent.size() > 0)
 			{
-				pxmf3Tangent[i] = xmf3Tangent[i];
+				pxmf3Tangent = new XMFLOAT3[nVertices];
 			}
 			if (xmf3Normal.size() > 0)
 			{
-				pxmf3Normal[i] = xmf3Normal[i];
+				pxmf3Normal = new XMFLOAT3[nVertices];
+			}
+			if (xmf3Binormal.size() > 0)
+			{
+				pxmf3Binormal = new XMFLOAT3[nVertices];
 			}
 			if (xmf4Color.size() > 0)
 			{
-				pxmf4Color[i] = xmf4Color[i];
-			}				
-		}
-
-		if (Indices.size() > 0)
-		{
-			for (int i = 0; i < nIndices; i++)
-			{
-				pIndices[i] = Indices[i];
+				pxmf4Color = new XMFLOAT4[nVertices];
 			}
-		}
+			if (Indices.size() > 0)
+			{
+				pIndices = new UINT[nVertices];
+			}
 
-		pV = new Vertex(nVertices);
-		pV->SetPosition(pxmf3Position);
+			for (int i = 0; i < nVertices; i++)
+			{
+				pxmf3Position[i] = xmf3Position[i];
 
-		if (xmf2UV.size() > 0)
-		{
-			pV->SetUV(pxmf2UV);
-		}
-		if (xmf3Tangent.size() > 0)
-		{
-			pV->SetTangent(pxmf3Tangent);
-		}
-		if (xmf3Normal.size() > 0)
-		{
-			pV->SetNormal(pxmf3Normal);
-		}
-		if (xmf4Color.size() > 0)
-		{
-			pV->SetColor(pxmf4Color);
-		}
-		if (Indices.size() > 0)
-		{
-			pV->SetIndices(pIndices);
-		}
+				if (xmf2UV.size() > 0)
+				{
+					pxmf2UV[i] = xmf2UV[i];
+				}
+				if (xmf3Tangent.size() > 0)
+				{
+					pxmf3Tangent[i] = xmf3Tangent[i];
+				}
+				if (xmf3Normal.size() > 0)
+				{
+					pxmf3Normal[i] = xmf3Normal[i];
+				}
+				if (xmf3Binormal.size() > 0)
+				{
+					pxmf3Binormal[i] = xmf3Binormal[i];
+				}
+				if (xmf4Color.size() > 0)
+				{
+					pxmf4Color[i] = xmf4Color[i];
+				}
+			}
 
-		Mesh* pM;
-		pM = new Mesh(pd3dDevice, pd3dCommandList, pV);
-		pOutObject->SetMesh(pM);
+			if (Indices.size() > 0)
+			{
+				for (int i = 0; i < nIndices; i++)
+				{
+					pIndices[i] = Indices[i];
+				}
+			}
+
+			pV = new Vertex(nVertices);
+			pV->SetPosition(pxmf3Position);
+
+			if (xmf2UV.size() > 0)
+			{
+				pV->SetUV(pxmf2UV);
+			}
+			if (xmf3Tangent.size() > 0)
+			{
+				pV->SetTangent(pxmf3Tangent);
+			}
+			if (xmf3Normal.size() > 0)
+			{
+				pV->SetNormal(pxmf3Normal);
+			}
+			if (xmf3Binormal.size() > 0)
+			{
+				pV->SetNormal(pxmf3Binormal);
+			}
+			if (xmf4Color.size() > 0)
+			{
+				pV->SetColor(pxmf4Color);
+			}
+			if (Indices.size() > 0)
+			{
+				pV->SetIndices(pIndices);
+			}
+
+			Mesh* pM;
+			pM = new Mesh(pd3dDevice, pd3dCommandList, pV);
+			pOutObject->SetMesh(pM);
+		}
 	}
-	
+}
+
+void FBX::GetIndeices(FbxMesh* pMesh, vector<UINT>& Indices, int nPolygonIndex)
+{
+}
+void FBX::GetBiNormal(FbxMesh* pMesh, vector<XMFLOAT3>& vxmf3BiNormal, int nVertexID, int nPolygonIndex, int nPolygonSizeIndex)
+{
+	FbxGeometryElementBinormal* pBinormal = pMesh->GetElementBinormal(0);
+
+	if (pBinormal == nullptr)
+		return;
+
+	if (pBinormal->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
+	{
+		switch (pBinormal->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+			vxmf3BiNormal.push_back(XMFLOAT3(pBinormal->GetDirectArray().GetAt(nVertexID).mData[0],
+				pBinormal->GetDirectArray().GetAt(nVertexID).mData[1], 
+				pBinormal->GetDirectArray().GetAt(nVertexID).mData[2]));
+			break;
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int id = pBinormal->GetIndexArray().GetAt(nVertexID);
+			vxmf3BiNormal.push_back(XMFLOAT3(pBinormal->GetDirectArray().GetAt(id).mData[0],
+				pBinormal->GetDirectArray().GetAt(id).mData[1],
+				pBinormal->GetDirectArray().GetAt(id).mData[2]));
+		}
+		break;
+		default:
+			break; // other reference modes not shown here!
+		}
+	}
+}
+void FBX::GetNormal(FbxMesh* pMesh, vector<XMFLOAT3>& xmf3Normal, int nVertexID, int nPolygonIndex, int nPolygonSizeIndex)
+{
+	FbxGeometryElementNormal* pGeometryElementNormal = pMesh->GetElementNormal(0);
+
+	if (pGeometryElementNormal == nullptr)
+		return;
+
+	int nControlPointIndex = pMesh->GetPolygonVertex(nPolygonIndex, nPolygonSizeIndex);
+	FbxVector4 f4Normal;
+
+	if (pGeometryElementNormal->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
+	{
+		switch (pGeometryElementNormal->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+			f4Normal = pGeometryElementNormal->GetDirectArray().GetAt(nVertexID);
+
+			xmf3Normal.push_back(XMFLOAT3(f4Normal.mData[0], f4Normal.mData[1], f4Normal.mData[2]));
+			break;
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int nID = pGeometryElementNormal->GetIndexArray().GetAt(nVertexID);
+			f4Normal = pGeometryElementNormal->GetDirectArray().GetAt(nID);
+
+			xmf3Normal.push_back(XMFLOAT3(f4Normal.mData[0], f4Normal.mData[1], f4Normal.mData[2]));
+		}
+		break;
+		default:
+			break; // other reference modes not shown here!
+		}
+	}
+	else if (pGeometryElementNormal->GetMappingMode() == FbxGeometryElement::eByControlPoint)
+	{
+		switch (pGeometryElementNormal->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+		{
+			f4Normal = pGeometryElementNormal->GetDirectArray().GetAt(nControlPointIndex); 
+			xmf3Normal.push_back(XMFLOAT3(f4Normal.mData[0], f4Normal.mData[1], f4Normal.mData[2]));
+		}
+		break;
+
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int index = pGeometryElementNormal->GetIndexArray().GetAt(nControlPointIndex);
+			f4Normal = pGeometryElementNormal->GetDirectArray().GetAt(index);
+			xmf3Normal.push_back(XMFLOAT3(f4Normal.mData[0], f4Normal.mData[1], f4Normal.mData[2]));
+		}
+		break;
+
+		default:
+			throw std::exception("Invalid Reference");
+		}
+	}
+}
+void FBX::GetTangent(FbxMesh* pMesh, vector<XMFLOAT3>& xmf3Tangent, int nVertexID, int nPolygonIndex, int nPolygonSizeIndex)
+{
+	FbxGeometryElementTangent* pGeometryElementTangent = pMesh->GetElementTangent(0);
+
+	if (pGeometryElementTangent == nullptr)
+		return;
+
+	if (pGeometryElementTangent->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
+	{
+		switch (pGeometryElementTangent->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+			xmf3Tangent.push_back(XMFLOAT3(pGeometryElementTangent->GetDirectArray().GetAt(nVertexID).mData[0]
+				, pGeometryElementTangent->GetDirectArray().GetAt(nVertexID).mData[1]
+				, pGeometryElementTangent->GetDirectArray().GetAt(nVertexID).mData[2]));
+			break;
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int nID = pGeometryElementTangent->GetIndexArray().GetAt(nVertexID);
+			xmf3Tangent.push_back(XMFLOAT3(pGeometryElementTangent->GetDirectArray().GetAt(nID).mData[0]
+				, pGeometryElementTangent->GetDirectArray().GetAt(nID).mData[1]
+				, pGeometryElementTangent->GetDirectArray().GetAt(nID).mData[2]));
+		}
+		break;
+		default:
+			break; // other reference modes not shown here!
+		}
+	}
+}
+void FBX::GetUV(FbxMesh* pMesh, vector<XMFLOAT2>& xmf3UV, int nUV, int nPolygonIndex, int nPolygonSizeIndex)
+{
+	FbxGeometryElementUV* pGeometryElementUV = pMesh->GetElementUV(nUV);
+
+	if (pGeometryElementUV == nullptr)
+		return;
+
+	int nControlPointIndex = pMesh->GetPolygonVertex(nPolygonIndex, nPolygonSizeIndex);
+	   
+	switch (pGeometryElementUV->GetMappingMode())
+	{
+	default:
+		break;
+	case FbxGeometryElement::eByControlPoint:
+		switch (pGeometryElementUV->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+			pGeometryElementUV->GetDirectArray().GetAt(nControlPointIndex);
+			break;
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int id = pGeometryElementUV->GetIndexArray().GetAt(nControlPointIndex);
+			pGeometryElementUV->GetDirectArray().GetAt(id);
+		}
+		break;
+		default:
+			break; // other reference modes not shown here!
+		}
+		break;
+	case FbxGeometryElement::eByPolygonVertex:
+	{
+		int lTextureUVIndex = pMesh->GetTextureUVIndex(nPolygonIndex, nPolygonSizeIndex);
+
+		switch (pGeometryElementUV->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			FbxVector2 f2UV = pGeometryElementUV->GetDirectArray().GetAt(lTextureUVIndex);
+			xmf3UV.push_back(XMFLOAT2(f2UV.mData[0], f2UV.mData[1]));
+		}
+		break;
+		default:
+			break; // other reference modes not shown here!
+		}
+	}
+	break;
+
+	case FbxGeometryElement::eByPolygon: // doesn't make much sense for UVs
+	case FbxGeometryElement::eAllSame:   // doesn't make much sense for UVs
+	case FbxGeometryElement::eNone:       // doesn't make much sense for UVs
+		break;
+	}
 }

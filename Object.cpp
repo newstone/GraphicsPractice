@@ -48,13 +48,13 @@ Object::Object() : m_nMeshes(0), m_nMeshIndex(0)
 {
 	XMStoreFloat4x4(&m_ObjectInfo.xmf4x4World, XMMatrixIdentity());
 	m_ObjectInfo.xmf4x4World._11 = m_ObjectInfo.xmf4x4World._22 = m_ObjectInfo.xmf4x4World._33 = 3.0f;
-	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 30.0f);
 }
 Object::Object(int nMeshes) : m_nMeshes(nMeshes), m_nMeshIndex(0)
 {
 	XMStoreFloat4x4(&m_ObjectInfo.xmf4x4World, XMMatrixIdentity());
-	m_ObjectInfo.xmf4x4World._11 = m_ObjectInfo.xmf4x4World._22 = m_ObjectInfo.xmf4x4World._33 = 3.0f;
-	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	m_ObjectInfo.xmf4x4World._11 = m_ObjectInfo.xmf4x4World._22 = m_ObjectInfo.xmf4x4World._33 = 30.0f;
+	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 30.0f);
 }
 
 Object::~Object()
@@ -77,6 +77,10 @@ void Object::CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsComma
 void Object::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList, UINT RootParameterIndex)
 {
 	UINT ncbElementBytes = ((sizeof(OBJECT_INFO) + 255) & ~255);
+
+	m_ObjectInfo.xmf4x4World._41 = m_xmf3Position.x;
+	m_ObjectInfo.xmf4x4World._42 = m_xmf3Position.y;
+	m_ObjectInfo.xmf4x4World._43 = m_xmf3Position.z;
 
 	XMStoreFloat4x4(&m_pMappedObjectInfo->xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_ObjectInfo.xmf4x4World)));
 

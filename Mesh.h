@@ -12,6 +12,7 @@ private:
 	XMFLOAT2* m_pxmf2UV;
 	XMFLOAT3* m_pxmf3Tangent;
 	XMFLOAT3* m_pxmf3Normal;
+	XMFLOAT3* m_pxmf3Binormal;
 	XMFLOAT4* m_pxmf4Color;
 
 	UINT* m_pIndices;
@@ -25,6 +26,7 @@ public:
 	virtual void SetUV(XMFLOAT2* pxmf2UV);
 	virtual void SetTangent(XMFLOAT3* pxmf3Tangent);
 	virtual void SetNormal(XMFLOAT3* pxmf3Normal);
+	virtual void SetBinormal(XMFLOAT3* pxmf3Binormal);
 	virtual void SetColor(XMFLOAT4* pxmf3Color);
 	virtual void SetIndices(UINT* pIndices);
 
@@ -47,6 +49,10 @@ public:
 	virtual XMFLOAT3* GetNormal()
 	{
 		return m_pxmf3Normal;
+	};
+	virtual XMFLOAT3* GetBinormal()
+	{
+		return m_pxmf3Binormal;
 	};
 	virtual XMFLOAT4* GetColor()
 	{
@@ -84,6 +90,7 @@ protected:
 	UINT							m_nIndices = 0;
 public:
 	Mesh(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, Vertex* pVertex);
+	Mesh() {};
 	~Mesh();
 
 	static ID3D12Resource* CreateBufferResource(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, void *pData
@@ -96,3 +103,15 @@ public:
 	void Render(ID3D12GraphicsCommandList *pd3dCommandList);
 };
 
+class cm : public Mesh
+{
+public:
+	cm(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, float fWidth = 20.0f, float fHeight = 20.0f, float fDepth = 20.0f);
+	~cm() {};
+};
+class tmesh : public Mesh
+{
+public:
+	tmesh(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
+	~tmesh();
+};

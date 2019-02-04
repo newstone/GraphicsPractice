@@ -9,7 +9,6 @@ private:
 	FBX* m_pFBX;
 	ComPtr<ID3D12RootSignature> m_pd3dGraphicsRootSignature;
 	Object* m_pObject;
-
 	Camera* m_pCamera;
 public:
 	Scene();	
