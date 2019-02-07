@@ -5,16 +5,29 @@
 
 using namespace std;
 
+struct V1
+{
+	XMFLOAT3 xmf3Position;
+};
+struct V2 : public V1
+{
+	XMFLOAT3 xmf3Normal;
+};
+struct V3 : public V2
+{
+	XMFLOAT2 xmf2UV;
+};
+struct V4 : public V3
+{
+	XMFLOAT3 xmf3Tangent;
+};
+
 class Vertex
 {
 private:
-	XMFLOAT3* m_pxmf3Position;
-	XMFLOAT2* m_pxmf2UV;
-	XMFLOAT3* m_pxmf3Tangent;
-	XMFLOAT3* m_pxmf3Normal;
-	XMFLOAT3* m_pxmf3Binormal;
-	XMFLOAT4* m_pxmf4Color;
+	void* m_pVertices;
 
+	UINT		m_nStride;
 	UINT* m_pIndices;
 	UINT m_nVertices;
 public:
@@ -22,48 +35,29 @@ public:
 	{}
 	~Vertex() 
 	{}
-	virtual void SetPosition(XMFLOAT3* pxmf3Position);
-	virtual void SetUV(XMFLOAT2* pxmf2UV);
-	virtual void SetTangent(XMFLOAT3* pxmf3Tangent);
-	virtual void SetNormal(XMFLOAT3* pxmf3Normal);
-	virtual void SetBinormal(XMFLOAT3* pxmf3Binormal);
-	virtual void SetColor(XMFLOAT4* pxmf3Color);
+	virtual void SetVertices(void* pV);
 	virtual void SetIndices(UINT* pIndices);
+	void SetStride(UINT nStride)
+	{
+		m_nStride = nStride;
+	}
 
-	virtual UINT GetVertices()
+	UINT GetStride()
+	{
+		return m_nStride;
+	}
+	virtual void* GetVertices()
+	{
+		return m_pVertices;
+	}
+	virtual UINT GetVerticesSize()
 	{
 		return m_nVertices;
 	}
-	virtual XMFLOAT3* GetPosition()
-	{
-		return m_pxmf3Position;
-	};
-	virtual XMFLOAT2* GetUV()
-	{
-		return m_pxmf2UV;
-	};
-	virtual XMFLOAT3* GetTangent()
-	{
-		return m_pxmf3Position;
-	};
-	virtual XMFLOAT3* GetNormal()
-	{
-		return m_pxmf3Normal;
-	};
-	virtual XMFLOAT3* GetBinormal()
-	{
-		return m_pxmf3Binormal;
-	};
-	virtual XMFLOAT4* GetColor()
-	{
-		return m_pxmf4Color;
-	};
 	virtual UINT* GetIndices()
 	{
 		return m_pIndices;
 	}
-
-	int GetVertexSize();
 };
 
 class Mesh
@@ -101,17 +95,4 @@ public:
 	}
 
 	void Render(ID3D12GraphicsCommandList *pd3dCommandList);
-};
-
-class cm : public Mesh
-{
-public:
-	cm(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, float fWidth = 20.0f, float fHeight = 20.0f, float fDepth = 20.0f);
-	~cm() {};
-};
-class tmesh : public Mesh
-{
-public:
-	tmesh(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
-	~tmesh();
 };

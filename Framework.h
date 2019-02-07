@@ -56,6 +56,7 @@ public:
 	void CreateRenderTargetViews();
 	void CreateDepthStencilView();
 
+	void LoadFBXFile(const string& strPath);
 	void BuildScene();
 
 	void OnResizeBackBuffers();

@@ -9,16 +9,19 @@ Scene::Scene() : m_pFBX(nullptr)
 
 Scene::~Scene()
 {
-	delete m_pObject;
+	for(int i = 0; i < m_vObjects.size(); i++)
+		delete m_vObjects[i];
 }
 
 void Scene::LoadModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath)
 {
 	m_pFBX = new FBX();
 
-	m_pObject = new Object(1);
-
+	AnimationObject* m_pObject = new AnimationObject(1);
 	m_pFBX->LoadFBXFile(pd3dDevice, pd3dCommandList, strPath, m_pObject);
+	m_pObject->SetPosition(rand() % 50 - 100, rand() % 50 - 100, rand() % 50 - 100);
+
+	m_vObjects.push_back(m_pObject);
 }
 
 void Scene::SetCamera(Camera* pCamera)
@@ -28,12 +31,12 @@ void Scene::SetCamera(Camera* pCamera)
 
 void Scene::BuildObjects(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
 {
-	if (m_pObject != nullptr)
+	if (m_vObjects[m_vObjects.size() - 1] != nullptr)
 	{
 		Renderer* pDR = new DiffuseRenderer();
-		m_pObject->SetRenderer(pDR);
-		m_pObject->CreateRenderer(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get());
-		m_pObject->CreateShaderVariables(pd3dDevice, pd3dCommandList);
+		m_vObjects[m_vObjects.size() - 1]->SetRenderer(pDR);
+		m_vObjects[m_vObjects.size() - 1]->CreateRenderer(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get());
+		m_vObjects[m_vObjects.size() - 1]->CreateShaderVariables(pd3dDevice, pd3dCommandList);
 	}
 }
 
@@ -135,6 +138,9 @@ void Scene::Render(ID3D12GraphicsCommandList *pd3dCommandList)
 	m_pCamera->SetViewportsAndScissorRects(pd3dCommandList);
 	m_pCamera->UpdateShaderVariables(pd3dCommandList);
 
-	if(m_pObject != nullptr)
-		m_pObject->Render(pd3dCommandList);
+	for (int i = 0; i < m_vObjects.size(); i++)
+	{
+		if (m_vObjects[i] != nullptr)
+			m_vObjects[i]->Render(pd3dCommandList);
+	}
 }

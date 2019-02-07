@@ -23,6 +23,8 @@ SamplerState gClampSamplerState : register(s1);
 struct VS_INPUT
 {
 	float3 position : POSITION;
+	float3 normal : NORMAL;
+	float2 uv : UV;
 };
 
 struct VS_OUTPUT
@@ -43,7 +45,7 @@ VS_OUTPUT VS(VS_INPUT input, uint nVertexID : SV_VertexID)
 
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
-	float4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	float4 Color = { 0.7f, 0.5f, 0.6f, 1.0f };
 
 	return Color;
 }

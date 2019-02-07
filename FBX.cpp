@@ -44,216 +44,14 @@ HRESULT FBX::LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd
 	
 	if (!bSuccess) 
 		return E_FAIL;
-
+	
 	SetModel(pd3dDevice, pd3dCommandList, m_pfbxScene->GetNode(0), pOutObject);
-	   
+	FbxAnimStack* fs = m_pfbxScene->GetCurrentAnimationStack();
+
 	pfbxImporter->Destroy();
 
 	return S_OK; 
 }
-
-void FBX::GetPosition(FbxMesh* pFbxMesh, vector<XMFLOAT3>& xmf3Position)
-{
-	UINT nCtrlPointCount = pFbxMesh->GetControlPointsCount();
-
-	for (UINT i = 0; i < nCtrlPointCount; ++i)
-	{
-		XMFLOAT3 currPosition;
-		currPosition.x = static_cast<float>(pFbxMesh->GetControlPointAt(i).mData[0]);
-		currPosition.y = static_cast<float>(pFbxMesh->GetControlPointAt(i).mData[1]);
-		currPosition.z = static_cast<float>(pFbxMesh->GetControlPointAt(i).mData[2]);
-		xmf3Position.push_back(currPosition);
-	}
-}
-
-void FBX::GetNormal(FbxMesh* pFbxMesh, vector<XMFLOAT3>& vxmf3Normal)
-{
-	if (pFbxMesh != nullptr)
-	{
-		//print mesh node name
-		FBXSDK_printf("current mesh node: %s\n", pFbxMesh->GetName());
-
-		//get the normal element
-		FbxGeometryElementNormal* lNormalElement = pFbxMesh->GetElementNormal();
-
-		if (lNormalElement != nullptr)
-		{
-			//mapping mode is by control points. The mesh should be smooth and soft.
-			//we can get normals by retrieving each control point
-			if (lNormalElement->GetMappingMode() == FbxGeometryElement::eByControlPoint)
-			{
-				//Let's get normals of each vertex, since the mapping mode of normal element is by control point
-				for (int lVertexIndex = 0; lVertexIndex < pFbxMesh->GetControlPointsCount(); lVertexIndex++)
-				{
-					int lNormalIndex = 0;
-					//reference mode is direct, the normal index is same as vertex index.
-					//get normals by the index of control vertex
-					if (lNormalElement->GetReferenceMode() == FbxGeometryElement::eDirect)
-						lNormalIndex = lVertexIndex;
-
-					//reference mode is index-to-direct, get normals by the index-to-direct
-					if (lNormalElement->GetReferenceMode() == FbxGeometryElement::eIndexToDirect)
-						lNormalIndex = lNormalElement->GetIndexArray().GetAt(lVertexIndex);
-
-					//Got normals of each vertex.
-					FbxVector4 lNormal = lNormalElement->GetDirectArray().GetAt(lNormalIndex);
-
-					XMFLOAT3 xmf3Normal;
-					xmf3Normal.x = lNormal.mData[0];
-					xmf3Normal.y = lNormal.mData[1];
-					xmf3Normal.z = lNormal.mData[2];
-
-					vxmf3Normal.push_back(xmf3Normal);
-						
-					//add your custom code here, to output normals or get them into a list, such as KArrayTemplate<FbxVector4>
-					//. . .
-				}//end for lVertexIndex
-			}//end eByControlPoint
-			//mapping mode is by polygon-vertex.
-			//we can get normals by retrieving polygon-vertex.
-			else if (lNormalElement->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
-			{
-				int lIndexByPolygonVertex = 0;
-				//Let's get normals of each polygon, since the mapping mode of normal element is by polygon-vertex.
-				for (int lPolygonIndex = 0; lPolygonIndex < pFbxMesh->GetPolygonCount(); lPolygonIndex++)
-				{
-					//get polygon size, you know how many vertices in current polygon.
-					int lPolygonSize = pFbxMesh->GetPolygonSize(lPolygonIndex);
-					//retrieve each vertex of current polygon.
-					for (int i = 0; i < lPolygonSize; i++)
-					{
-						int lNormalIndex = 0;
-						//reference mode is direct, the normal index is same as lIndexByPolygonVertex.
-						if (lNormalElement->GetReferenceMode() == FbxGeometryElement::eDirect)
-							lNormalIndex = lIndexByPolygonVertex;
-
-						//reference mode is index-to-direct, get normals by the index-to-direct
-						if (lNormalElement->GetReferenceMode() == FbxGeometryElement::eIndexToDirect)
-							lNormalIndex = lNormalElement->GetIndexArray().GetAt(lIndexByPolygonVertex);
-
-						//Got normals of each polygon-vertex.
-						FbxVector4 lNormal = lNormalElement->GetDirectArray().GetAt(lNormalIndex);
-						
-						XMFLOAT3 xmf3Normal;
-						xmf3Normal.x = lNormal.mData[0];
-						xmf3Normal.y = lNormal.mData[1];
-						xmf3Normal.z = lNormal.mData[2];
-
-						vxmf3Normal.push_back(xmf3Normal);
-
-						//add your custom code here, to output normals or get them into a list, such as KArrayTemplate<FbxVector4>
-						//. . .
-
-						lIndexByPolygonVertex++;
-					}//end for i //lPolygonSize
-				}//end for lPolygonIndex //PolygonCount
-
-			}//end eByPolygonVertex
-		}//end if lNormalElement
-	}
-}
-void FBX::GetBiNormal(FbxMesh* pFbxMesh, vector<XMFLOAT3>& vxmf3BiNormal)
-{
-}
-void FBX::GetTangent(FbxMesh* pFbxMesh, vector<XMFLOAT3>& xmf3Tangent)
-{
-}
-void FBX::GetUV(FbxMesh* pFbxMesh, vector<XMFLOAT2>& xmf3UV)
-{
-	if (pFbxMesh != nullptr)
-	{
-		FbxStringList strUVSetNameList;
-		pFbxMesh->GetUVSetNames(strUVSetNameList);
-
-		FbxGeometryElementUV* IUVElement = pFbxMesh->GetElementUV();
-
-		//iterating over all uv sets
-		for (int lUVSetIndex = 0; lUVSetIndex < 1/*strUVSetNameList.GetCount()*/; lUVSetIndex++)
-		{
-			//get lUVSetIndex-th uv set
-			const char* lUVSetName = strUVSetNameList.GetStringAt(lUVSetIndex);
-			const FbxGeometryElementUV* lUVElement = pFbxMesh->GetElementUV(lUVSetName);
-
-			if (!lUVElement)
-				continue;
-
-			// only support mapping mode eByPolygonVertex and eByControlPoint
-			if (lUVElement->GetMappingMode() != FbxGeometryElement::eByPolygonVertex &&
-				lUVElement->GetMappingMode() != FbxGeometryElement::eByControlPoint)
-				return;
-
-			//index array, where holds the index referenced to the uv data
-			const bool lUseIndex = lUVElement->GetReferenceMode() != FbxGeometryElement::eDirect;
-			const int lIndexCount = (lUseIndex) ? lUVElement->GetIndexArray().GetCount() : 0;
-
-			//iterating through the data by polygon
-			const int lPolyCount = pFbxMesh->GetPolygonCount();
-
-			if (lUVElement->GetMappingMode() == FbxGeometryElement::eByControlPoint)
-			{
-				for (int lPolyIndex = 0; lPolyIndex < lPolyCount; ++lPolyIndex)
-				{
-					// build the max index array that we need to pass into MakePoly
-					const int lPolySize = pFbxMesh->GetPolygonSize(lPolyIndex);
-
-					for (int lVertIndex = 0; lVertIndex < lPolySize; ++lVertIndex)
-					{
-						FbxVector2 lUVValue;
-						XMFLOAT2 xmf2UV;
-
-						//get the index of the current vertex in control points array
-						int lPolyVertIndex = pFbxMesh->GetPolygonVertex(lPolyIndex, lVertIndex);
-
-						//the UV index depends on the reference mode
-						int lUVIndex = lUseIndex ? lUVElement->GetIndexArray().GetAt(lPolyVertIndex) : lPolyVertIndex;
-
-						lUVValue = lUVElement->GetDirectArray().GetAt(lUVIndex);
-						xmf2UV.x = lUVValue.mData[0];
-						xmf2UV.y = lUVValue.mData[1];
-
-						xmf3UV.push_back(xmf2UV);
-
-						//User TODO:
-						//Print out the value of UV(lUVValue) or log it to a file
-					}
-				}
-			}
-			else if (lUVElement->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
-			{
-				int lPolyIndexCounter = 0;
-				for (int lPolyIndex = 0; lPolyIndex < lPolyCount; ++lPolyIndex)
-				{
-					// build the max index array that we need to pass into MakePoly
-					const int lPolySize = pFbxMesh->GetPolygonSize(lPolyIndex);
-					for (int lVertIndex = 0; lVertIndex < lPolySize; ++lVertIndex)
-					{
-						if (lPolyIndexCounter < lIndexCount)
-						{
-							FbxVector2 lUVValue;
-							XMFLOAT2 xmf2UV;
-
-							//the UV index depends on the reference mode
-							int lUVIndex = lUseIndex ? lUVElement->GetIndexArray().GetAt(lPolyIndexCounter) : lPolyIndexCounter;
-
-							lUVValue = lUVElement->GetDirectArray().GetAt(lUVIndex);
-
-							//User TODO:
-							//Print out the value of UV(lUVValue) or log it to a file
-							xmf2UV.x = lUVValue.mData[0];
-							xmf2UV.y = lUVValue.mData[1];
-
-							xmf3UV.push_back(xmf2UV);
-
-							lPolyIndexCounter++;
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-
 void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pRootNode, Object* pOutObject)
 {
 	if (pRootNode == nullptr)
@@ -282,10 +80,10 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 		}
 	}
 
-	//while (true)
+	while (true)
 	{
-	//	if (fbxMeshes.empty())
-		//	break;
+		if (fbxMeshes.empty())
+			break;
 
 		vector<XMFLOAT3> xmf3Position;
 		vector<XMFLOAT2> xmf2UV;
@@ -302,9 +100,11 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 		if (pFbxMesh == nullptr)
 			return;
 		
+		//FbxSkin* pFbxSkin = pFbxMesh->GetDeformer(0, FbxDeformer::eSkin));
+
 		int nTriangleCount = pFbxMesh->GetPolygonCount();
 		int nVertexCounter = 0;
-		
+
 		for (unsigned int i = 0; i < nTriangleCount; ++i)
 		{
 			for (unsigned int j = 0; j < 3; ++j)
@@ -326,66 +126,86 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 
 		if (xmf3Position.size() > 0)
 		{
-			Vertex* pV;
 			UINT nVertices(xmf3Position.size());
 			UINT nIndices(Indices.size());
-
-			XMFLOAT3* pxmf3Position = new XMFLOAT3[nVertices];
-			XMFLOAT2* pxmf2UV(nullptr);
-			XMFLOAT3* pxmf3Tangent(nullptr);
-			XMFLOAT3* pxmf3Normal(nullptr);
-			XMFLOAT3* pxmf3Binormal(nullptr);
-			XMFLOAT4* pxmf4Color(nullptr);
+			bool bFlags[5] = { false };
 			UINT* pIndices(nullptr);
-
+			
 			if (xmf2UV.size() > 0)
 			{
-				pxmf2UV = new XMFLOAT2[nVertices];
+				bFlags[1] = true;
 			}
 			if (xmf3Tangent.size() > 0)
 			{
-				pxmf3Tangent = new XMFLOAT3[nVertices];
+				//bFlags[2] = true;
 			}
 			if (xmf3Normal.size() > 0)
 			{
-				pxmf3Normal = new XMFLOAT3[nVertices];
+				bFlags[0] = true;
 			}
 			if (xmf3Binormal.size() > 0)
 			{
-				pxmf3Binormal = new XMFLOAT3[nVertices];
+				//bFlags[3] = true;
 			}
 			if (xmf4Color.size() > 0)
 			{
-				pxmf4Color = new XMFLOAT4[nVertices];
+				//bFlags[4] = true;
 			}
 			if (Indices.size() > 0)
 			{
-				pIndices = new UINT[nVertices];
+				pIndices = new UINT[nIndices];
 			}
 
-			for (int i = 0; i < nVertices; i++)
-			{
-				pxmf3Position[i] = xmf3Position[i];
+			void* pVertices(nullptr);
+			UINT nSize(sizeof(XMFLOAT3));
 
+			//0:노말, 1: UV,  2:탄젠트, 3:바이노말 4: 디퓨즈 
+			if (!bFlags[0] && !bFlags[1] && !bFlags[2] && !bFlags[3] && !bFlags[4])
+			{
+				pVertices = new V1[nVertices];
+			}
+			else if (bFlags[0] && !bFlags[1] && !bFlags[2] && !bFlags[3] && !bFlags[4])
+			{
+				pVertices = new V2[nVertices];
+				nSize += sizeof(XMFLOAT3);
+			}
+			else if (bFlags[0] && bFlags[1] && !bFlags[2] && !bFlags[3] && !bFlags[4])
+			{
+				pVertices = new V3[nVertices];
+				nSize += sizeof(XMFLOAT3);
+				nSize += sizeof(XMFLOAT2);
+			}
+			void* pDes(pVertices);
+
+			for (int i = 0; i < nVertices; i++)
+			{				
+				memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT3));
+				pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
+				
+				if (xmf3Normal.size() > 0)
+				{
+					memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT3));
+					pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
+				}
 				if (xmf2UV.size() > 0)
 				{
-					pxmf2UV[i] = xmf2UV[i];
+					memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT2));
+					pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT2));
 				}
 				if (xmf3Tangent.size() > 0)
 				{
-					pxmf3Tangent[i] = xmf3Tangent[i];
-				}
-				if (xmf3Normal.size() > 0)
-				{
-					pxmf3Normal[i] = xmf3Normal[i];
-				}
+					//memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT3));
+				//	pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
+				}				
 				if (xmf3Binormal.size() > 0)
 				{
-					pxmf3Binormal[i] = xmf3Binormal[i];
+					//memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT3));
+				//	pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
 				}
 				if (xmf4Color.size() > 0)
 				{
-					pxmf4Color[i] = xmf4Color[i];
+					//memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT4));
+					//pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT4));
 				}
 			}
 
@@ -397,29 +217,10 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 				}
 			}
 
+			Vertex* pV;
 			pV = new Vertex(nVertices);
-			pV->SetPosition(pxmf3Position);
-
-			if (xmf2UV.size() > 0)
-			{
-				pV->SetUV(pxmf2UV);
-			}
-			if (xmf3Tangent.size() > 0)
-			{
-				pV->SetTangent(pxmf3Tangent);
-			}
-			if (xmf3Normal.size() > 0)
-			{
-				pV->SetNormal(pxmf3Normal);
-			}
-			if (xmf3Binormal.size() > 0)
-			{
-				pV->SetNormal(pxmf3Binormal);
-			}
-			if (xmf4Color.size() > 0)
-			{
-				pV->SetColor(pxmf4Color);
-			}
+			pV->SetStride(nSize);
+			pV->SetVertices(pVertices);
 			if (Indices.size() > 0)
 			{
 				pV->SetIndices(pIndices);
@@ -588,6 +389,75 @@ void FBX::GetUV(FbxMesh* pMesh, vector<XMFLOAT2>& xmf3UV, int nUV, int nPolygonI
 		{
 			FbxVector2 f2UV = pGeometryElementUV->GetDirectArray().GetAt(lTextureUVIndex);
 			xmf3UV.push_back(XMFLOAT2(f2UV.mData[0], f2UV.mData[1]));
+		}
+		break;
+		default:
+			break; // other reference modes not shown here!
+		}
+	}
+	break;
+
+	case FbxGeometryElement::eByPolygon: // doesn't make much sense for UVs
+	case FbxGeometryElement::eAllSame:   // doesn't make much sense for UVs
+	case FbxGeometryElement::eNone:       // doesn't make much sense for UVs
+		break;
+	}
+}
+void FBX::GetColor(FbxMesh* pMesh, vector<XMFLOAT4>& xmf4Color, int nVertexID, int nPolygonIndex, int nPolygonSizeIndex)
+{
+	FbxGeometryElementVertexColor* pGeometryElementVertexColor = pMesh->GetElementVertexColor(0);
+
+	if (pGeometryElementVertexColor == nullptr)
+		return;
+
+	int nControlPointIndex = pMesh->GetPolygonVertex(nPolygonIndex, nPolygonSizeIndex);
+
+	switch (pGeometryElementVertexColor->GetMappingMode())
+	{
+	default:
+		break;
+	case FbxGeometryElement::eByControlPoint:
+		switch (pGeometryElementVertexColor->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+			xmf4Color.push_back(XMFLOAT4(pGeometryElementVertexColor->GetDirectArray().GetAt(nControlPointIndex).mRed
+				, pGeometryElementVertexColor->GetDirectArray().GetAt(nControlPointIndex).mGreen,
+				pGeometryElementVertexColor->GetDirectArray().GetAt(nControlPointIndex).mBlue, 
+				pGeometryElementVertexColor->GetDirectArray().GetAt(nControlPointIndex).mAlpha));
+			break;
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int nID = pGeometryElementVertexColor->GetIndexArray().GetAt(nControlPointIndex);
+
+			xmf4Color.push_back(XMFLOAT4(pGeometryElementVertexColor->GetDirectArray().GetAt(nID).mRed,
+				pGeometryElementVertexColor->GetDirectArray().GetAt(nID).mGreen,
+				pGeometryElementVertexColor->GetDirectArray().GetAt(nID).mBlue,
+				pGeometryElementVertexColor->GetDirectArray().GetAt(nID).mAlpha));
+		}
+		break;
+		default:
+			break; // other reference modes not shown here!
+		}
+		break;
+
+	case FbxGeometryElement::eByPolygonVertex:
+	{
+		switch (pGeometryElementVertexColor->GetReferenceMode())
+		{
+		case FbxGeometryElement::eDirect:
+			xmf4Color.push_back(XMFLOAT4(pGeometryElementVertexColor->GetDirectArray().GetAt(nVertexID).mRed,
+				pGeometryElementVertexColor->GetDirectArray().GetAt(nVertexID).mGreen,
+				pGeometryElementVertexColor->GetDirectArray().GetAt(nVertexID).mBlue,
+				pGeometryElementVertexColor->GetDirectArray().GetAt(nVertexID).mAlpha));
+			break;
+		case FbxGeometryElement::eIndexToDirect:
+		{
+			int nID = pGeometryElementVertexColor->GetIndexArray().GetAt(nVertexID);
+			
+			xmf4Color.push_back(XMFLOAT4(pGeometryElementVertexColor->GetDirectArray().GetAt(nID).mRed,
+				pGeometryElementVertexColor->GetDirectArray().GetAt(nID).mGreen,
+				pGeometryElementVertexColor->GetDirectArray().GetAt(nID).mBlue,
+				pGeometryElementVertexColor->GetDirectArray().GetAt(nID).mAlpha));
 		}
 		break;
 		default:

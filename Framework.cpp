@@ -51,7 +51,6 @@ void Framework::CreateDevice()
 
 	if (!m_d3dDevice)
 	{
-		MessageBox(NULL, L"Direct3D 12 Device Cannot be Created.", L"Error", MB_OK);
 		::PostQuitMessage(0);
 		return;
 	}
@@ -102,7 +101,20 @@ void Framework::CreateDescriptHeap()
 	hResult = m_d3dDevice->CreateDescriptorHeap(&d3dDescriptorHeapDesc, IID_PPV_ARGS(&m_d3dDsvDescriptorHeap));
 	m_nDsvDescriptorIncrementSize = m_d3dDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 }
+void Framework::LoadFBXFile(const string& strPath)
+{
+	HRESULT hresult(m_d3dCommandAllocator->Reset());
+	hresult = m_d3dCommandList->Reset(m_d3dCommandAllocator.Get(), nullptr);
 
+	m_pScene->LoadModel(m_d3dDevice.Get(), m_d3dCommandList.Get(), strPath);
+	m_pScene->BuildObjects(m_d3dDevice.Get(), m_d3dCommandList.Get());
+
+	m_d3dCommandList->Close();
+	ID3D12CommandList* ppCommandLists[] = { m_d3dCommandList.Get() };
+	m_d3dCommandQueue->ExecuteCommandLists(1, ppCommandLists);
+
+	WaitForGpuComplete();
+}
 void Framework::BuildScene()
 {
 	HRESULT hresult(m_d3dCommandAllocator->Reset());
@@ -111,10 +123,10 @@ void Framework::BuildScene()
 	m_pScene = new Scene();
 	m_pScene->CreateGraphicsRootSignature(m_d3dDevice.Get());
 	
-	string str("dry_tree.FBX");
-	m_pScene->LoadModel(m_d3dDevice.Get(), m_d3dCommandList.Get(), str);
-
-	m_pScene->BuildObjects(m_d3dDevice.Get(), m_d3dCommandList.Get());
+	//string strPath = "SciFi_Space_Drone.FBX";
+	//
+	//m_pScene->LoadModel(m_d3dDevice.Get(), m_d3dCommandList.Get(), strPath);
+	//m_pScene->BuildObjects(m_d3dDevice.Get(), m_d3dCommandList.Get());
 
 	m_pPlayer = new Player();
 
@@ -179,7 +191,6 @@ void Framework::CreateSwapChain()
 
 	if (!m_dxgiSwapChain)
 	{
-		MessageBox(NULL, L"Swap Chain Cannot be Created.", L"Error", MB_OK);
 		::PostQuitMessage(0);
 		return;
 	}
