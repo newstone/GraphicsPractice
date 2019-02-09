@@ -10,13 +10,12 @@ struct OBJECT_INFO
 class Object
 {
 protected:
-	string strName;
+	string m_strName;
 	OBJECT_INFO m_ObjectInfo;
 	OBJECT_INFO* m_pMappedObjectInfo;
 	XMFLOAT3 m_xmf3Position;
 	
 	vector<Mesh*> m_vpMeshes;
-	int m_nMeshes;
 	int m_nMeshIndex;
 
 	int m_nMaterials;
@@ -27,9 +26,9 @@ protected:
 	vector<Renderer*> m_vpRenderer;
 public:
 	Object();
-	Object(int nMeshes);
 	~Object();
-	
+	virtual void RelaseUploadBuffer();
+
 	void CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList);
 	void CreateRenderer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature);
 
@@ -39,6 +38,7 @@ public:
 
 	void SetMesh(Mesh* pMesh);
 	void SetRenderer(Renderer* pRenderer);
+	void SetName(const string& strName);
 	Mesh* GetMesh(int nIndex);
 	
 	void UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList, UINT RootParameterIndex);
@@ -66,13 +66,25 @@ class AnimationObject : public Object
 private:
 	bool m_bRoot;
 
-	AnimationObject* m_pChild;
+	vector<AnimationObject*> m_vpChild;
 	AnimationObject* m_pParents;
-	AnimationObject* m_pSibling;
 
+	XMFLOAT4X4	m_xmf4x4ToRootTransform;
+	XMFLOAT4X4	m_xmf4x4ToParentTransform;
 public:
-	AnimationObject(int nMeshes);
+	AnimationObject();
 	~AnimationObject();
+
+	virtual void RelaseUploadBuffer();
+
+	void SetRoot(bool bIsRoot);
+	void AddChild(AnimationObject* pChild);
+	void SetParents(AnimationObject* pParents);
+
+	AnimationObject* GetChild(int nIndex);
+	AnimationObject* GetParentsAndNull();
+
+	void Render(ID3D12GraphicsCommandList* pd3dCommandList);
 };
 
 

@@ -25,6 +25,8 @@ struct VS_INPUT
 	float3 position : POSITION;
 	float3 normal : NORMAL;
 	float2 uv : UV;
+	uint4 cluster : CLUSTER;
+	float4 weight : WEIGHT;
 };
 
 struct VS_OUTPUT

@@ -13,15 +13,30 @@ Scene::~Scene()
 		delete m_vObjects[i];
 }
 
+void Scene::ReleaseUploadBuffer()
+{
+	while (true)
+	{
+		if (m_sReleaseUploadBuffer.empty())
+			break;
+		
+		Object* pObject = m_sReleaseUploadBuffer.top();
+		m_sReleaseUploadBuffer.pop();
+
+		pObject->RelaseUploadBuffer();
+	}
+}
+
 void Scene::LoadModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath)
 {
 	m_pFBX = new FBX();
 
-	AnimationObject* m_pObject = new AnimationObject(1);
+	AnimationObject* m_pObject = new AnimationObject();
 	m_pFBX->LoadFBXFile(pd3dDevice, pd3dCommandList, strPath, m_pObject);
 	m_pObject->SetPosition(rand() % 50 - 100, rand() % 50 - 100, rand() % 50 - 100);
 
 	m_vObjects.push_back(m_pObject);
+	m_sReleaseUploadBuffer.push(m_pObject);
 }
 
 void Scene::SetCamera(Camera* pCamera)

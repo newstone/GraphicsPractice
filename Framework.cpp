@@ -114,6 +114,8 @@ void Framework::LoadFBXFile(const string& strPath)
 	m_d3dCommandQueue->ExecuteCommandLists(1, ppCommandLists);
 
 	WaitForGpuComplete();
+
+	m_pScene->ReleaseUploadBuffer();
 }
 void Framework::BuildScene()
 {
@@ -123,10 +125,10 @@ void Framework::BuildScene()
 	m_pScene = new Scene();
 	m_pScene->CreateGraphicsRootSignature(m_d3dDevice.Get());
 	
-	//string strPath = "SciFi_Space_Drone.FBX";
-	//
-	//m_pScene->LoadModel(m_d3dDevice.Get(), m_d3dCommandList.Get(), strPath);
-	//m_pScene->BuildObjects(m_d3dDevice.Get(), m_d3dCommandList.Get());
+	string strPath = "Astronauta_LOD.fbx";
+	
+	m_pScene->LoadModel(m_d3dDevice.Get(), m_d3dCommandList.Get(), strPath);
+	m_pScene->BuildObjects(m_d3dDevice.Get(), m_d3dCommandList.Get());
 
 	m_pPlayer = new Player();
 
@@ -144,6 +146,10 @@ void Framework::BuildScene()
 	m_d3dCommandQueue->ExecuteCommandLists(1, ppCommandLists);
 
 	WaitForGpuComplete();
+
+	m_pScene->ReleaseUploadBuffer();
+
+	m_Timer.Reset();
 }
 
 void Framework::CreateSwapChainRenderTargetViews()
@@ -301,6 +307,10 @@ LRESULT CALLBACK Framework::OnProcessingWindowMessage(HWND hWnd, UINT nMessageID
 	{
 	case WM_ACTIVATE:
 	{
+		if (LOWORD(wParam) == WA_INACTIVE)
+			m_Timer.Stop();
+		else
+			m_Timer.Start();
 		break;
 	}
 	case WM_SIZE:
@@ -452,5 +462,6 @@ void Framework::Run()
 
 	m_dxgiSwapChain->Present(0, 0);
 
+	m_Timer.GetFrameRate(nullptr, 37);
 	MoveToNextFrame();
 }

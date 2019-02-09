@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "FBX.h"
-#include <stack>
 
 FBX::FBX()
 {
@@ -10,7 +9,7 @@ FBX::~FBX()
 {
 }
 
-HRESULT FBX::LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath, Object* pOutObject)
+HRESULT FBX::LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath, AnimationObject* pOutObject)
 {
 	m_pfbxSdkManager = FbxManager::Create();
 	
@@ -44,193 +43,266 @@ HRESULT FBX::LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd
 	
 	if (!bSuccess) 
 		return E_FAIL;
-	
-	SetModel(pd3dDevice, pd3dCommandList, m_pfbxScene->GetNode(0), pOutObject);
+	pOutObject->SetRoot(true);
+	CreateHierarchy(pd3dDevice, pd3dCommandList, m_pfbxScene->GetNode(0), pOutObject);
 	FbxAnimStack* fs = m_pfbxScene->GetCurrentAnimationStack();
 
 	pfbxImporter->Destroy();
 
 	return S_OK; 
 }
-void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pRootNode, Object* pOutObject)
+void FBX::CreateHierarchy(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pfbxNode, AnimationObject* pParentsObject)
 {
-	if (pRootNode == nullptr)
+	if (pfbxNode == nullptr)
 		return;
 
-	stack<FbxMesh*> fbxMeshes;
-	stack<FbxNode*> fbxAllNode;
-
-	fbxAllNode.push(pRootNode);
-
-	while (1)
+	FbxMesh* pFM = pfbxNode->GetMesh();
+	if (pFM != nullptr)
 	{
-		if (fbxAllNode.empty())
-			break;
-
-		FbxNode* pFbxNode = fbxAllNode.top();
-		fbxAllNode.pop();
-
-		FbxMesh* pFM = pFbxNode->GetMesh();
-		if (pFM != nullptr)
-			fbxMeshes.push(pFM);
-
-		for (int i = 0; i < pFbxNode->GetChildCount(); i++)
-		{
-			fbxAllNode.push(pFbxNode->GetChild(i));
-		}
+		SetModel(pd3dDevice, pd3dCommandList, pFM, pParentsObject);
 	}
 
-	while (true)
+	for (int i = 0; i < pfbxNode->GetChildCount(); i++)
 	{
-		if (fbxMeshes.empty())
-			break;
-
-		vector<XMFLOAT3> xmf3Position;
-		vector<XMFLOAT2> xmf2UV;
-		vector<XMFLOAT3> xmf3Tangent;
-		vector<XMFLOAT3> xmf3Normal;
-		vector<XMFLOAT3> xmf3Binormal;
-		vector<XMFLOAT4> xmf4Color;
-
-		vector<UINT> Indices;
-
-		FbxMesh* pFbxMesh = fbxMeshes.top();
-		fbxMeshes.pop();
-
-		if (pFbxMesh == nullptr)
-			return;
+		AnimationObject* pChildObject = new AnimationObject();
+		pChildObject->SetParents(pParentsObject);
+		pChildObject->SetName(pfbxNode->GetChild(i)->GetName());
 		
-		//FbxSkin* pFbxSkin = pFbxMesh->GetDeformer(0, FbxDeformer::eSkin));
+		pParentsObject->AddChild(pChildObject);
 
-		int nTriangleCount = pFbxMesh->GetPolygonCount();
-		int nVertexCounter = 0;
+		CreateHierarchy(pd3dDevice, pd3dCommandList, pfbxNode->GetChild(i), pChildObject);
+	}
+}
+void FBX::GetBlendInfo(FbxMesh* pfbxMesh, map<int, vector<BlendInfo>>& mWeight)
+{
+	FbxSkin* pSkin = reinterpret_cast<FbxSkin*>(pfbxMesh->GetDeformer(0, FbxDeformer::eSkin));
+	
+	if (pSkin == nullptr)
+		return;
 
-		for (unsigned int i = 0; i < nTriangleCount; ++i)
+	UINT nClusters = pSkin->GetClusterCount();
+
+	for (int i = 0; i < nClusters; i++)
+	{
+		FbxCluster* pCurrCluster = pSkin->GetCluster(i);
+		std::string currJointName = pCurrCluster->GetLink()->GetName();
+
+		UINT nIndices = pCurrCluster->GetControlPointIndicesCount();
+		int* plIndices = pCurrCluster->GetControlPointIndices();
+		double* pdWeight = pCurrCluster->GetControlPointWeights();
+
+		for (int j = 0; j < nIndices; j++)
 		{
-			for (unsigned int j = 0; j < 3; ++j)
+			if (mWeight.find(plIndices[j]) != mWeight.end())
 			{
-				FbxVector4* pControlPoints = pFbxMesh->GetControlPoints();
-				int nControlPointIndex = pFbxMesh->GetPolygonVertex(i, j);
+				BlendInfo bi;
+				bi.Weight = pdWeight[j];
+				bi.Index = i;
+				mWeight[plIndices[j]].push_back(bi);
+			}
+			else
+			{
+				vector<BlendInfo> vfWeight;
+				BlendInfo bi;
+				bi.Weight = pdWeight[j];
+				bi.Index = i;
+				vfWeight.push_back(bi);
 
-				xmf3Position.push_back(XMFLOAT3(pControlPoints[nControlPointIndex].mData[0], pControlPoints[nControlPointIndex].mData[1], pControlPoints[nControlPointIndex].mData[2]));
-
-				for (int l = 0; l < 1/*pFbxMesh->GetElementUVCount()*/; ++l)
-				{
-					GetUV(pFbxMesh, xmf2UV, l, i, j);
-				}
-				GetNormal(pFbxMesh, xmf3Normal, nVertexCounter, i, j);
-				GetTangent(pFbxMesh, xmf3Tangent, nVertexCounter, i, j);
-				GetBiNormal(pFbxMesh, xmf3Binormal, nVertexCounter, i, j);
+				mWeight.insert(make_pair(plIndices[j], vfWeight));
 			}
-		}
-
-		if (xmf3Position.size() > 0)
-		{
-			UINT nVertices(xmf3Position.size());
-			UINT nIndices(Indices.size());
-			bool bFlags[5] = { false };
-			UINT* pIndices(nullptr);
-			
-			if (xmf2UV.size() > 0)
-			{
-				bFlags[1] = true;
-			}
-			if (xmf3Tangent.size() > 0)
-			{
-				//bFlags[2] = true;
-			}
-			if (xmf3Normal.size() > 0)
-			{
-				bFlags[0] = true;
-			}
-			if (xmf3Binormal.size() > 0)
-			{
-				//bFlags[3] = true;
-			}
-			if (xmf4Color.size() > 0)
-			{
-				//bFlags[4] = true;
-			}
-			if (Indices.size() > 0)
-			{
-				pIndices = new UINT[nIndices];
-			}
-
-			void* pVertices(nullptr);
-			UINT nSize(sizeof(XMFLOAT3));
-
-			//0:노말, 1: UV,  2:탄젠트, 3:바이노말 4: 디퓨즈 
-			if (!bFlags[0] && !bFlags[1] && !bFlags[2] && !bFlags[3] && !bFlags[4])
-			{
-				pVertices = new V1[nVertices];
-			}
-			else if (bFlags[0] && !bFlags[1] && !bFlags[2] && !bFlags[3] && !bFlags[4])
-			{
-				pVertices = new V2[nVertices];
-				nSize += sizeof(XMFLOAT3);
-			}
-			else if (bFlags[0] && bFlags[1] && !bFlags[2] && !bFlags[3] && !bFlags[4])
-			{
-				pVertices = new V3[nVertices];
-				nSize += sizeof(XMFLOAT3);
-				nSize += sizeof(XMFLOAT2);
-			}
-			void* pDes(pVertices);
-
-			for (int i = 0; i < nVertices; i++)
-			{				
-				memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT3));
-				pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
-				
-				if (xmf3Normal.size() > 0)
-				{
-					memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT3));
-					pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
-				}
-				if (xmf2UV.size() > 0)
-				{
-					memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT2));
-					pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT2));
-				}
-				if (xmf3Tangent.size() > 0)
-				{
-					//memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT3));
-				//	pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
-				}				
-				if (xmf3Binormal.size() > 0)
-				{
-					//memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT3));
-				//	pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
-				}
-				if (xmf4Color.size() > 0)
-				{
-					//memcpy(pDes, &xmf3Position[i], sizeof(XMFLOAT4));
-					//pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT4));
-				}
-			}
-
-			if (Indices.size() > 0)
-			{
-				for (int i = 0; i < nIndices; i++)
-				{
-					pIndices[i] = Indices[i];
-				}
-			}
-
-			Vertex* pV;
-			pV = new Vertex(nVertices);
-			pV->SetStride(nSize);
-			pV->SetVertices(pVertices);
-			if (Indices.size() > 0)
-			{
-				pV->SetIndices(pIndices);
-			}
-
-			Mesh* pM;
-			pM = new Mesh(pd3dDevice, pd3dCommandList, pV);
-			pOutObject->SetMesh(pM);
 		}
 	}
+}
+void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxMesh* fbxMesh, AnimationObject* pOutObject)
+{
+	if (fbxMesh == nullptr)
+		return;
+
+	vector<XMFLOAT3> vxmf3Position;
+	vector<XMFLOAT2> vxmf2UV;
+	vector<XMFLOAT3> vxmf3Tangent;
+	vector<XMFLOAT3> vxmf3Normal;
+	vector<XMFLOAT3> vxmf3Binormal;
+	vector<XMFLOAT4> vxmf4Weight;
+	vector<XMUINT4> vxmn4Cluster;
+	vector<XMFLOAT4> vxmf4Color;
+
+	vector<UINT> vIndices;
+
+	FbxMesh* pFbxMesh = fbxMesh;
+
+	map<int, vector<BlendInfo>> mWeight;
+
+	GetBlendInfo(pFbxMesh, mWeight);
+
+	for (map<int, vector<BlendInfo>>::iterator it = mWeight.begin(); it != mWeight.end(); it++)
+	{
+		if (it->second.size() < WEIGHTS)
+		{
+			for (int i = 0; it->second.size() < WEIGHTS; i++)
+			{
+				BlendInfo bi;
+				bi.Index = 0;
+				bi.Weight = 0.0f;
+				it->second.push_back(bi);
+			}
+		}
+		else if (it->second.size() > WEIGHTS)
+		{
+			it->second[3].Weight = 1.0f - it->second[0].Weight - it->second[1].Weight - it->second[2].Weight;
+		}
+	}
+
+	if (pFbxMesh == nullptr)
+		return;
+	
+	int nTriangleCount = pFbxMesh->GetPolygonCount();
+	int nVertexCounter = 0;
+	FbxVector4* pControlPoints = pFbxMesh->GetControlPoints();
+
+	for (unsigned int i = 0; i < nTriangleCount; ++i)
+	{
+		for (unsigned int j = 0; j < 3; ++j)
+		{
+			int nControlPointIndex = pFbxMesh->GetPolygonVertex(i, j);
+
+			vxmf3Position.push_back(XMFLOAT3(pControlPoints[nControlPointIndex].mData[0], pControlPoints[nControlPointIndex].mData[1], pControlPoints[nControlPointIndex].mData[2]));
+			XMFLOAT4 xmf4Weight = { mWeight[nControlPointIndex][0].Weight, mWeight[nControlPointIndex][1].Weight
+				, mWeight[nControlPointIndex][2].Weight ,mWeight[nControlPointIndex][3].Weight };
+			XMUINT4 xmn4Cluster = { mWeight[nControlPointIndex][0].Index , mWeight[nControlPointIndex][1].Index
+				, mWeight[nControlPointIndex][2].Index ,mWeight[nControlPointIndex][3].Index };
+
+			vxmf4Weight.push_back(xmf4Weight);
+			vxmn4Cluster.push_back(xmn4Cluster);
+
+			for (int l = 0; l < 1/*pFbxMesh->GetElementUVCount()*/; ++l)
+			{
+				GetUV(pFbxMesh, vxmf2UV, l, i, j);
+			}
+			GetNormal(pFbxMesh, vxmf3Normal, nVertexCounter, i, j);
+			GetTangent(pFbxMesh, vxmf3Tangent, nVertexCounter, i, j);
+			GetBiNormal(pFbxMesh, vxmf3Binormal, nVertexCounter, i, j);
+		}
+	}
+
+	if (vxmf3Position.size() > 0)
+	{
+		UINT nVertices(vxmf3Position.size());
+		UINT nIndices(vIndices.size());
+		bool bFlags[6] = { false };
+		UINT* pIndices(nullptr);
+		
+		if (vxmf2UV.size() > 0)
+		{
+			bFlags[1] = true;
+		}
+		if (vxmf3Tangent.size() > 0)
+		{
+			//bFlags[2] = true;
+		}
+		if (vxmf3Normal.size() > 0)
+		{
+			bFlags[0] = true;
+		}
+		if (vxmf3Binormal.size() > 0)
+		{
+			//bFlags[3] = true;
+		}
+		if (vxmf4Color.size() > 0)
+		{
+			//bFlags[4] = true;
+		}
+		if (vxmf4Weight.size() > 0)
+		{
+			bFlags[5] = true;
+		}
+
+		if (vIndices.size() > 0)
+		{
+			pIndices = new UINT[nIndices];
+		}
+
+		void* pVertices(nullptr);
+		UINT nSize(sizeof(XMFLOAT3));
+
+		//0:노말, 1: UV,  2:탄젠트, 3:바이노말 4: 디퓨즈 
+		if (!bFlags[0] && !bFlags[1] && !bFlags[2] && !bFlags[3] && !bFlags[4]&&!bFlags[5])
+		{
+			pVertices = new V1[nVertices];
+		}
+		else if (bFlags[0] && !bFlags[1] && !bFlags[2] && !bFlags[3] && !bFlags[4] && !bFlags[5])
+		{
+			pVertices = new V2[nVertices];
+			nSize += sizeof(XMFLOAT3);
+		}
+		else if (bFlags[0] && bFlags[1] && !bFlags[2] && !bFlags[3] && !bFlags[4] && !bFlags[5])
+		{
+			pVertices = new V3[nVertices];
+			nSize += sizeof(XMFLOAT3);
+			nSize += sizeof(XMFLOAT2);
+		}
+		else if (bFlags[0] && bFlags[1] && !bFlags[2] && !bFlags[3] && !bFlags[4] && bFlags[5])
+		{
+			pVertices = new V5[nVertices];
+			nSize += sizeof(XMFLOAT3);
+			nSize += sizeof(XMFLOAT2);
+			nSize += sizeof(XMFLOAT4);
+			nSize += sizeof(XMUINT4);
+		}
+		void* pDes(pVertices);
+
+		for (int i = 0; i < nVertices; i++)
+		{				
+			memcpy(pDes, &vxmf3Position[i], sizeof(XMFLOAT3));
+			pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
+			
+			if (bFlags[0]) 
+			{
+				memcpy(pDes, &vxmf3Normal[i], sizeof(XMFLOAT3));
+				pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
+			}
+			if (bFlags[1])
+			{
+				memcpy(pDes, &vxmf2UV[i], sizeof(XMFLOAT2));
+				pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT2));
+			}
+			if (bFlags[2])
+			{
+				memcpy(pDes, &vxmf3Tangent[i], sizeof(XMFLOAT3));
+				pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
+			}				
+			if (bFlags[3])
+			{
+				memcpy(pDes, &vxmf3Binormal[i], sizeof(XMFLOAT3));
+				pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT3));
+			}
+			if (bFlags[4])
+			{
+				memcpy(pDes, &vxmf4Color[i], sizeof(XMFLOAT4));
+				pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT4));
+			}
+			if (bFlags[5])
+			{
+				memcpy(pDes, &vxmn4Cluster[i], sizeof(XMUINT4));
+				pDes = (void*)((UINT8*)pDes + sizeof(XMUINT4));
+				memcpy(pDes, &vxmf4Weight[i], sizeof(XMFLOAT4));
+				pDes = (void*)((UINT8*)pDes + sizeof(XMFLOAT4));
+			}
+		}
+
+		Vertex* pV;
+		pV = new Vertex(nVertices);
+		pV->SetStride(nSize);
+		pV->SetVertices(pVertices);
+		if (vIndices.size() > 0)
+		{
+			pV->SetIndices(pIndices, vIndices.size());
+		}
+
+		Mesh* pM;
+		pM = new Mesh(pd3dDevice, pd3dCommandList, pV);
+		pOutObject->SetMesh(pM);
+	}	
 }
 
 void FBX::GetIndeices(FbxMesh* pMesh, vector<UINT>& Indices, int nPolygonIndex)

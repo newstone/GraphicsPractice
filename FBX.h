@@ -2,6 +2,16 @@
 
 #include <fbxsdk.h>
 #include "Player.h"
+#include <map>
+#include <stack>
+
+#define WEIGHTS 4
+
+struct BlendInfo
+{
+	UINT Index;
+	float Weight; 
+};
 
 class FBX
 {
@@ -14,9 +24,11 @@ public:
 	FBX();
 	~FBX();
 	   
-	HRESULT LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath, Object* pOutObject);
-	void SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pRootNode, Object* pOutObject);
+	HRESULT LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath, AnimationObject* pOutObject);
+	void SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxMesh* fbxMesh, AnimationObject* pOutObject);
+	void CreateHierarchy(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pfbxNode, AnimationObject* pParentsObject);
 
+	void GetBlendInfo(FbxMesh* pfbxMesh, map<int, vector<BlendInfo>>& mWeight);
 	void GetIndeices(FbxMesh* pMesh, vector<UINT>& Indices, int nPolygonIndex);
 	void GetBiNormal(FbxMesh* pMesh, vector<XMFLOAT3>& vxmf3BiNormal, int nVertexID, int nPolygonIndex, int nPolygonSizeIndex);
 	void GetNormal(FbxMesh* pMesh, vector<XMFLOAT3>& xmf3Normal, int nVertexID, int nPolygonIndex, int nPolygonSizeIndex);

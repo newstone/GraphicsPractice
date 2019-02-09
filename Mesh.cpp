@@ -5,9 +5,10 @@ void Vertex::SetVertices(void* pV)
 {
 	m_pVertices = pV;
 }
-void Vertex::SetIndices(UINT* pIndices)
+void Vertex::SetIndices(UINT* pIndices, UINT nIndices)
 {
 	m_pIndices = pIndices;
+	m_nIndices = nIndices;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -101,7 +102,7 @@ ID3D12Resource* Mesh::CreateBufferResource(ID3D12Device *pd3dDevice, ID3D12Graph
 	return(pd3dBuffer);
 }
 
-Mesh::Mesh(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, Vertex* pVertex) : m_pVertex(pVertex)
+Mesh::Mesh(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, Vertex* pVertex) : m_pVertex(pVertex), m_nIndices(0)
 {
 	m_nStride = pVertex->GetStride();
 	m_nVertices = pVertex->GetVerticesSize();
@@ -112,9 +113,27 @@ Mesh::Mesh(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList,
 	m_d3dVertexBufferView.BufferLocation = m_d3dVertexBuffer->GetGPUVirtualAddress();
 	m_d3dVertexBufferView.StrideInBytes = m_nStride;
 	m_d3dVertexBufferView.SizeInBytes = m_nStride * m_nVertices;
+
+	m_nIndices = pVertex->GetIndicesSize();
+
+	if (m_nIndices > 0)
+	{
+		m_d3dIndexBuffer = CreateBufferResource(pd3dDevice, pd3dCommandList, pVertex->GetIndices(), sizeof(UINT) * m_nIndices, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATE_INDEX_BUFFER, &m_d3dIndexUploadBuffer);
+
+		m_d3dIndexBufferView.BufferLocation = m_d3dIndexBuffer->GetGPUVirtualAddress();
+		m_d3dIndexBufferView.Format = DXGI_FORMAT_R32_UINT;
+		m_d3dIndexBufferView.SizeInBytes = sizeof(UINT) * m_nIndices;
+	}
 }
 Mesh::~Mesh()
 {}
+void Mesh::RelaseUploadBuffer()
+{
+	if(m_d3dVertexUploadBuffer)
+		m_d3dVertexUploadBuffer->Release();
+	if(m_d3dIndexUploadBuffer)
+		m_d3dIndexUploadBuffer->Release();
+}
 
 void Mesh::Render(ID3D12GraphicsCommandList *pd3dCommandList)
 {

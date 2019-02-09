@@ -21,6 +21,11 @@ struct V4 : public V3
 {
 	XMFLOAT3 xmf3Tangent;
 };
+struct V5 : public V4
+{
+	XMUINT4 xmn4Cluster;
+	XMFLOAT4 xmf4Weight;
+};
 
 class Vertex
 {
@@ -28,6 +33,7 @@ private:
 	void* m_pVertices;
 
 	UINT		m_nStride;
+	UINT m_nIndices;
 	UINT* m_pIndices;
 	UINT m_nVertices;
 public:
@@ -36,7 +42,7 @@ public:
 	~Vertex() 
 	{}
 	virtual void SetVertices(void* pV);
-	virtual void SetIndices(UINT* pIndices);
+	virtual void SetIndices(UINT* pIndices, UINT nIndices);
 	void SetStride(UINT nStride)
 	{
 		m_nStride = nStride;
@@ -54,6 +60,10 @@ public:
 	{
 		return m_nVertices;
 	}
+	virtual UINT GetIndicesSize()
+	{
+		return m_nIndices;
+	}
 	virtual UINT* GetIndices()
 	{
 		return m_pIndices;
@@ -63,7 +73,6 @@ public:
 class Mesh
 {
 protected:
-	int m_nType;
 	UINT	m_nVertices = 0;
 	Vertex* m_pVertex;
 
@@ -87,6 +96,7 @@ public:
 	Mesh() {};
 	~Mesh();
 
+	void RelaseUploadBuffer();
 	static ID3D12Resource* CreateBufferResource(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, void *pData
 		, UINT nBytes, D3D12_HEAP_TYPE d3dHeapType, D3D12_RESOURCE_STATES d3dResourceStates, ID3D12Resource **ppd3dUploadBuffer);
 	Vertex* GetVertex()

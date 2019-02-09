@@ -1,6 +1,7 @@
 #pragma once
 #include "Scene.h"
 #include "Camera.h"
+#include "Timer.h"
 
 class Framework
 {
@@ -41,6 +42,8 @@ private:
 	Scene* m_pScene;
 	Camera* m_pCamera;
 	Player* m_pPlayer;
+
+	Timer               m_Timer;
 
 	POINT						m_ptOldCursorPos;
 public:

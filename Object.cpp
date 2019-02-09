@@ -44,16 +44,10 @@ D3D12_SHADER_RESOURCE_VIEW_DESC Material::GetShaderResourceViewDesc(D3D12_RESOUR
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Object::Object() : m_nMeshes(0), m_nMeshIndex(0)
+Object::Object() :  m_nMeshIndex(0)
 {
 	XMStoreFloat4x4(&m_ObjectInfo.xmf4x4World, XMMatrixIdentity());
 	m_ObjectInfo.xmf4x4World._11 = m_ObjectInfo.xmf4x4World._22 = m_ObjectInfo.xmf4x4World._33 = 3.0f;
-	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 30.0f);
-}
-Object::Object(int nMeshes) : m_nMeshes(nMeshes), m_nMeshIndex(0)
-{
-	XMStoreFloat4x4(&m_ObjectInfo.xmf4x4World, XMMatrixIdentity());
-	m_ObjectInfo.xmf4x4World._11 = m_ObjectInfo.xmf4x4World._22 = m_ObjectInfo.xmf4x4World._33 = 30.0f;
 	m_xmf3Position = XMFLOAT3(0.0f, 0.0f, 30.0f);
 }
 
@@ -64,6 +58,13 @@ Object::~Object()
 
 	for (int i = 0; i < m_vpMeshes.size(); i++)
 		delete m_vpMeshes[i];
+}
+void Object::RelaseUploadBuffer()
+{
+	for (int i = 0; i < m_vpMeshes.size(); i++)
+	{
+		m_vpMeshes[i]->RelaseUploadBuffer();
+	}
 }
 
 void Object::CreateShaderVariables(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList)
@@ -90,7 +91,10 @@ void Object::CreateRenderer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList*
 {
 	m_vpRenderer[0]->CreateRenderer(pd3dDevice, pd3dCommandList, pd3dGraphicsRootSignature);
 }
-
+void Object::SetName(const string& strName)
+{
+	m_strName = strName;
+}
 void Object::SetMesh(Mesh* pMesh)
 {
 	m_vpMeshes.push_back(pMesh);
@@ -132,7 +136,7 @@ void Object::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-StaticObject::StaticObject(int nMeshes) : Object(nMeshes)
+StaticObject::StaticObject(int nMeshes) : Object()
 {
 }
 StaticObject::~StaticObject()
@@ -143,14 +147,68 @@ StaticObject::~StaticObject()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-AnimationObject::AnimationObject(int nMeshes) : Object(nMeshes), m_bRoot(false)
+AnimationObject::AnimationObject() : Object(), m_bRoot(false), m_pParents(nullptr)
 {
+	XMStoreFloat4x4(&m_xmf4x4ToRootTransform, XMMatrixIdentity());
+	XMStoreFloat4x4(&m_xmf4x4ToParentTransform, XMMatrixIdentity());
 }
 
 AnimationObject::~AnimationObject() 
 {
 }
 
+void AnimationObject::RelaseUploadBuffer()
+{
+	for (int i = 0; i < m_vpMeshes.size(); i++)
+	{
+		m_vpMeshes[i]->RelaseUploadBuffer();
+	}
+
+	for (int i = 0; i < m_vpChild.size(); i++)
+	{
+		m_vpChild[i]->RelaseUploadBuffer();
+	}
+}
+
+void AnimationObject::SetRoot(bool bIsRoot)
+{
+	m_bRoot = bIsRoot;
+}
+void AnimationObject::AddChild(AnimationObject* pChild)
+{
+	if(pChild != nullptr)
+		m_vpChild.push_back(pChild);
+}
+void AnimationObject::SetParents(AnimationObject* pParents)
+{
+	if (pParents != nullptr)
+		m_pParents = pParents;
+}
+AnimationObject* AnimationObject::GetChild(int nIndex)
+{
+	assert(nIndex < m_vpChild.size());
+	return m_vpChild[nIndex];
+}
+AnimationObject* AnimationObject::GetParentsAndNull()
+{
+	return m_pParents;
+}
+void AnimationObject::Render(ID3D12GraphicsCommandList* pd3dCommandList)
+{
+	if (m_bRoot)
+	{
+		UpdateShaderVariables(pd3dCommandList, 2);
+		m_vpRenderer[0]->OnPrepareForRender(pd3dCommandList);
+	}
+
+	for (int i = 0; i < m_vpMeshes.size(); i++)
+		m_vpMeshes[i]->Render(pd3dCommandList);
+
+	for (int i = 0; i < m_vpChild.size(); i++)
+	{
+		m_vpChild[i]->Render(pd3dCommandList);
+	}
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
