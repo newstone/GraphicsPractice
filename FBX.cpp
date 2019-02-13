@@ -127,7 +127,7 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 	vector<XMUINT4> vxmn4Cluster;
 	vector<XMFLOAT4> vxmf4Color;
 
-	vector<UINT> vIndices;
+	UINT* pIndices;
 
 	FbxMesh* pFbxMesh = fbxMesh;
 
@@ -156,41 +156,40 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 	if (pFbxMesh == nullptr)
 		return;
 	
-	int nTriangleCount = pFbxMesh->GetPolygonCount();
-	int nVertexCounter = 0;
+	int nTriangleCount(pFbxMesh->GetPolygonCount());
+	int nIndices(0);
+	int nVertexCounter(0);
 	FbxVector4* pControlPoints = pFbxMesh->GetControlPoints();
-
-	for (unsigned int i = 0; i < nTriangleCount; ++i)
+	int nV(pFbxMesh->GetControlPointsCount());
+	
+	for (int i = 0; i < nTriangleCount; i++)
 	{
-		for (unsigned int j = 0; j < 3; ++j)
+		nIndices += pFbxMesh->GetPolygonSize(i);
+	}
+
+	pIndices = new UINT[nIndices];
+	FbxVector4 *pfbxv4Vertices = new FbxVector4[nV];
+	::memcpy(pfbxv4Vertices, pFbxMesh->GetControlPoints(), nV * sizeof(FbxVector4));
+
+	for (int i = 0; i < nV; i++)
+		vxmf3Position.push_back(XMFLOAT3((float)pfbxv4Vertices[i][0], (float)pfbxv4Vertices[i][1], (float)pfbxv4Vertices[i][2]));
+
+	GetNormal(pFbxMesh, vxmf3Normal, nV, 0, 0);
+	for (unsigned int i = 0, k = 0; i < nTriangleCount; ++i)
+	{
+		for (unsigned int j = 0; j < 3; ++j) // 오직 삼각형의 메쉬로만 그려진 오브젝트만 그릴 수 있다.
 		{
 			int nControlPointIndex = pFbxMesh->GetPolygonVertex(i, j);
-
-			vxmf3Position.push_back(XMFLOAT3(pControlPoints[nControlPointIndex].mData[0], pControlPoints[nControlPointIndex].mData[1], pControlPoints[nControlPointIndex].mData[2]));
-			XMFLOAT4 xmf4Weight = { mWeight[nControlPointIndex][0].Weight, mWeight[nControlPointIndex][1].Weight
-				, mWeight[nControlPointIndex][2].Weight ,mWeight[nControlPointIndex][3].Weight };
-			XMUINT4 xmn4Cluster = { mWeight[nControlPointIndex][0].Index , mWeight[nControlPointIndex][1].Index
-				, mWeight[nControlPointIndex][2].Index ,mWeight[nControlPointIndex][3].Index };
-
-			vxmf4Weight.push_back(xmf4Weight);
-			vxmn4Cluster.push_back(xmn4Cluster);
-
-			for (int l = 0; l < 1/*pFbxMesh->GetElementUVCount()*/; ++l)
-			{
-				GetUV(pFbxMesh, vxmf2UV, l, i, j);
-			}
-			GetNormal(pFbxMesh, vxmf3Normal, nVertexCounter, i, j);
-			GetTangent(pFbxMesh, vxmf3Tangent, nVertexCounter, i, j);
-			GetBiNormal(pFbxMesh, vxmf3Binormal, nVertexCounter, i, j);
+			pIndices[k++] = nControlPointIndex;
 		}
 	}
+
+	GetVertexInfo(pFbxMesh, nV, vxmf3Normal, vxmf2UV, vxmf3Tangent, vxmf3Binormal);
 
 	if (vxmf3Position.size() > 0)
 	{
 		UINT nVertices(vxmf3Position.size());
-		UINT nIndices(vIndices.size());
 		bool bFlags[6] = { false };
-		UINT* pIndices(nullptr);
 		
 		if (vxmf2UV.size() > 0)
 		{
@@ -217,10 +216,6 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 			bFlags[5] = true;
 		}
 
-		if (vIndices.size() > 0)
-		{
-			pIndices = new UINT[nIndices];
-		}
 
 		void* pVertices(nullptr);
 		UINT nSize(sizeof(XMFLOAT3));
@@ -294,15 +289,47 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 		pV = new Vertex(nVertices);
 		pV->SetStride(nSize);
 		pV->SetVertices(pVertices);
-		if (vIndices.size() > 0)
+		if (nIndices > 0)
 		{
-			pV->SetIndices(pIndices, vIndices.size());
+			pV->SetIndices(pIndices, nIndices);
 		}
 
 		Mesh* pM;
 		pM = new Mesh(pd3dDevice, pd3dCommandList, pV);
 		pOutObject->SetMesh(pM);
 	}	
+}
+
+void FBX::GetVertexInfo(FbxMesh*pMesh, UINT nVertices, vector<XMFLOAT3>& xmf3Normal, vector<XMFLOAT2>& xmf3UV, vector<XMFLOAT3>& xmf3Tangent, vector<XMFLOAT3>& vxmf3BiNormal)
+{
+	FbxGeometryElementNormal* pGeometryElementNormal = pMesh->GetElementNormal(0);
+	FbxGeometryElementUV* pGeometryElementUV = pMesh->GetElementUV(0);
+	FbxGeometryElementTangent* pGeometryElementTangent = pMesh->GetElementTangent(0);
+	FbxGeometryElementBinormal* pGeometryElementBinormal = pMesh->GetElementBinormal(0);
+
+	for (int i = 0; i < nVertices; i++)
+	{
+		if (pGeometryElementNormal != nullptr)
+		{
+			FbxVector4 f4Normal = pGeometryElementNormal->GetDirectArray().GetAt(i);
+			xmf3Normal.push_back(XMFLOAT3(f4Normal.mData[0], f4Normal.mData[1], f4Normal.mData[2]));
+		}
+		if (pGeometryElementUV != nullptr)
+		{
+			FbxVector2 f2UV = pGeometryElementUV->GetDirectArray().GetAt(i);
+			xmf3UV.push_back(XMFLOAT2(f2UV.mData[0], f2UV.mData[1]));
+		}
+		if (pGeometryElementTangent != nullptr)
+		{
+			FbxVector4 f4Tangent = pGeometryElementTangent->GetDirectArray().GetAt(i);
+			xmf3Tangent.push_back(XMFLOAT3(f4Tangent.mData[0], f4Tangent.mData[1], f4Tangent.mData[2]));
+		}
+		if (pGeometryElementBinormal != nullptr)
+		{
+			FbxVector4 f4BiNormal = pGeometryElementBinormal->GetDirectArray().GetAt(i);
+			vxmf3BiNormal.push_back(XMFLOAT3(f4BiNormal.mData[0], f4BiNormal.mData[1], f4BiNormal.mData[2]));
+		}
+	}
 }
 
 void FBX::GetIndeices(FbxMesh* pMesh, vector<UINT>& Indices, int nPolygonIndex)
@@ -347,50 +374,20 @@ void FBX::GetNormal(FbxMesh* pMesh, vector<XMFLOAT3>& xmf3Normal, int nVertexID,
 	int nControlPointIndex = pMesh->GetPolygonVertex(nPolygonIndex, nPolygonSizeIndex);
 	FbxVector4 f4Normal;
 
-	if (pGeometryElementNormal->GetMappingMode() == FbxGeometryElement::eByPolygonVertex)
+	for (int i = 0; i < nVertexID + 100; i++)
 	{
-		switch (pGeometryElementNormal->GetReferenceMode())
-		{
-		case FbxGeometryElement::eDirect:
-			f4Normal = pGeometryElementNormal->GetDirectArray().GetAt(nVertexID);
 
-			xmf3Normal.push_back(XMFLOAT3(f4Normal.mData[0], f4Normal.mData[1], f4Normal.mData[2]));
-			break;
-		case FbxGeometryElement::eIndexToDirect:
-		{
-			int nID = pGeometryElementNormal->GetIndexArray().GetAt(nVertexID);
-			f4Normal = pGeometryElementNormal->GetDirectArray().GetAt(nID);
+		f4Normal = pGeometryElementNormal->GetDirectArray().GetAt(i);
+		xmf3Normal.push_back(XMFLOAT3(f4Normal.mData[0], f4Normal.mData[1], f4Normal.mData[2]));
 
+		if (nVertexID+90 < i)
+		{
+
+			f4Normal = pGeometryElementNormal->GetDirectArray().GetAt(i);
 			xmf3Normal.push_back(XMFLOAT3(f4Normal.mData[0], f4Normal.mData[1], f4Normal.mData[2]));
-		}
-		break;
-		default:
-			break; // other reference modes not shown here!
 		}
 	}
-	else if (pGeometryElementNormal->GetMappingMode() == FbxGeometryElement::eByControlPoint)
-	{
-		switch (pGeometryElementNormal->GetReferenceMode())
-		{
-		case FbxGeometryElement::eDirect:
-		{
-			f4Normal = pGeometryElementNormal->GetDirectArray().GetAt(nControlPointIndex); 
-			xmf3Normal.push_back(XMFLOAT3(f4Normal.mData[0], f4Normal.mData[1], f4Normal.mData[2]));
-		}
-		break;
-
-		case FbxGeometryElement::eIndexToDirect:
-		{
-			int index = pGeometryElementNormal->GetIndexArray().GetAt(nControlPointIndex);
-			f4Normal = pGeometryElementNormal->GetDirectArray().GetAt(index);
-			xmf3Normal.push_back(XMFLOAT3(f4Normal.mData[0], f4Normal.mData[1], f4Normal.mData[2]));
-		}
-		break;
-
-		default:
-			throw std::exception("Invalid Reference");
-		}
-	}
+	
 }
 void FBX::GetTangent(FbxMesh* pMesh, vector<XMFLOAT3>& xmf3Tangent, int nVertexID, int nPolygonIndex, int nPolygonSizeIndex)
 {

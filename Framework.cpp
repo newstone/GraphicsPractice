@@ -125,7 +125,7 @@ void Framework::BuildScene()
 	m_pScene = new Scene();
 	m_pScene->CreateGraphicsRootSignature(m_d3dDevice.Get());
 	
-	string strPath = "Astronauta_LOD.fbx";
+	string strPath = "space_marine.FBX";
 	
 	m_pScene->LoadModel(m_d3dDevice.Get(), m_d3dCommandList.Get(), strPath);
 	m_pScene->BuildObjects(m_d3dDevice.Get(), m_d3dCommandList.Get());

@@ -28,6 +28,7 @@ public:
 	void SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxMesh* fbxMesh, AnimationObject* pOutObject);
 	void CreateHierarchy(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pfbxNode, AnimationObject* pParentsObject);
 
+	void GetVertexInfo(FbxMesh*pMesh, UINT nVertices, vector<XMFLOAT3>& xmf3Normal, vector<XMFLOAT2>& xmf3UV, vector<XMFLOAT3>& xmf3Tangent, vector<XMFLOAT3>& vxmf3BiNormal);
 	void GetBlendInfo(FbxMesh* pfbxMesh, map<int, vector<BlendInfo>>& mWeight);
 	void GetIndeices(FbxMesh* pMesh, vector<UINT>& Indices, int nPolygonIndex);
 	void GetBiNormal(FbxMesh* pMesh, vector<XMFLOAT3>& vxmf3BiNormal, int nVertexID, int nPolygonIndex, int nPolygonSizeIndex);
