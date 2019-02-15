@@ -189,9 +189,21 @@ AnimationObject* AnimationObject::GetChild(int nIndex)
 	assert(nIndex < m_vpChild.size());
 	return m_vpChild[nIndex];
 }
-AnimationObject* AnimationObject::GetParentsAndNull()
+int AnimationObject::GetChildCount()
+{
+	return m_vpChild.size();
+}
+AnimationObject* AnimationObject::GetParentsOrNull()
 {
 	return m_pParents;
+}
+XMFLOAT4X4& AnimationObject::GetToRootTransform()
+{
+	return m_xmf4x4ToRootTransform;
+}
+XMFLOAT4X4& AnimationObject::GetToParentTransform()
+{
+	return m_xmf4x4ToParentTransform;
 }
 void AnimationObject::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 {

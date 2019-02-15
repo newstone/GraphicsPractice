@@ -1,6 +1,7 @@
 #pragma once
 #include "Mesh.h"
 #include "Renderer.h"
+#include "AnimationController.h"
 
 struct OBJECT_INFO
 {
@@ -82,7 +83,11 @@ public:
 	void SetParents(AnimationObject* pParents);
 
 	AnimationObject* GetChild(int nIndex);
-	AnimationObject* GetParentsAndNull();
+	AnimationObject* GetParentsOrNull();
+	XMFLOAT4X4& GetToRootTransform();
+	XMFLOAT4X4& GetToParentTransform();
+
+	int GetChildCount();
 
 	void Render(ID3D12GraphicsCommandList* pd3dCommandList);
 };

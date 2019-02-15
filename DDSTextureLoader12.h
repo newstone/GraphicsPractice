@@ -22,7 +22,6 @@
 #include <assert.h>
 #include <algorithm>
 #include <memory>
-#include <vector>
 
 namespace DirectX
 {

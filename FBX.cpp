@@ -93,19 +93,17 @@ void FBX::GetBlendInfo(FbxMesh* pfbxMesh, map<int, vector<BlendInfo>>& mWeight)
 
 		for (int j = 0; j < nIndices; j++)
 		{
+			BlendInfo bi;
+			bi.Weight = static_cast<float>(pdWeight[j]);
+			bi.Index = i;
+
 			if (mWeight.find(plIndices[j]) != mWeight.end())
 			{
-				BlendInfo bi;
-				bi.Weight = pdWeight[j];
-				bi.Index = i;
 				mWeight[plIndices[j]].push_back(bi);
 			}
 			else
 			{
 				vector<BlendInfo> vfWeight;
-				BlendInfo bi;
-				bi.Weight = pdWeight[j];
-				bi.Index = i;
 				vfWeight.push_back(bi);
 
 				mWeight.insert(make_pair(plIndices[j], vfWeight));
@@ -177,7 +175,7 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 	GetNormal(pFbxMesh, vxmf3Normal, nV, 0, 0);
 	for (unsigned int i = 0, k = 0; i < nTriangleCount; ++i)
 	{
-		for (unsigned int j = 0; j < 3; ++j) // 오직 삼각형의 메쉬로만 그려진 오브젝트만 그릴 수 있다.
+		for (unsigned int j = 0; j < 3/*pFbxMesh->GetPolygonSize(i)*/; ++j) // 오직 삼각형의 메쉬로만 그려진 오브젝트만 그릴 수 있다.
 		{
 			int nControlPointIndex = pFbxMesh->GetPolygonVertex(i, j);
 			pIndices[k++] = nControlPointIndex;

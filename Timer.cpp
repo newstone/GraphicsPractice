@@ -61,8 +61,10 @@ void Timer::Tick(float fLockFPS)
 	}
 
 	m_fTimeElapsed = 0.0f;
-	for (ULONG i = 0; i < m_nSampleCount; i++) m_fTimeElapsed += m_fFrameTime[i];
-	if (m_nSampleCount > 0) m_fTimeElapsed /= m_nSampleCount;
+	for (ULONG i = 0; i < m_nSampleCount; i++) 
+		m_fTimeElapsed += m_fFrameTime[i];
+	if (m_nSampleCount > 0) 
+		m_fTimeElapsed /= m_nSampleCount;
 }
 
 unsigned long Timer::GetFrameRate(LPTSTR lpszString, int nCharacters)

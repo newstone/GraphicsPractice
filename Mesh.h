@@ -3,8 +3,6 @@
 #include <string>
 #include "XMMath.h"
 
-using namespace std;
-
 struct V1
 {
 	XMFLOAT3 xmf3Position;
