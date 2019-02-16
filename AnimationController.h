@@ -25,7 +25,7 @@ private:
 //
 class AnimationController
 {
-	AnimationResource* m_pAnimationResource;
+	AnimationResource m_AnimationResource;
 	vector<XMFLOAT4X4>	m_vBindPoses;
 
 	AnimationStack<AnimationObject> m_AnimationStack;
@@ -35,7 +35,11 @@ public:
 	void SetToParentTransforms(UINT fTimeElapsed, AnimationObject* pRootObject);
 	void SetToRootTransforms(AnimationObject* pRootObject);
 
+	void AddBindPoseTransform(const XMFLOAT4X4& mBindPose);
+
 	void AdvanceAnimation(ID3D12GraphicsCommandList* pd3dCommandList, UINT fTimeElapsed, AnimationObject* pRootObject);
+
+	AnimationResource& GetAnimationResource();
 
 	AnimationController();
 	~AnimationController();

@@ -147,7 +147,7 @@ StaticObject::~StaticObject()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-AnimationObject::AnimationObject() : Object(), m_bRoot(false), m_pParents(nullptr)
+AnimationObject::AnimationObject() : Object(), m_bRoot(false), m_pParents(nullptr), m_nClusterIndex(INVALID)
 {
 	XMStoreFloat4x4(&m_xmf4x4ToRootTransform, XMMatrixIdentity());
 	XMStoreFloat4x4(&m_xmf4x4ToParentTransform, XMMatrixIdentity());
@@ -184,6 +184,14 @@ void AnimationObject::SetParents(AnimationObject* pParents)
 	if (pParents != nullptr)
 		m_pParents = pParents;
 }
+void AnimationObject::SetClusterIndex(UINT nIndex)
+{
+	nClusterIndex = nIndex;
+}
+UINT AnimationObject::GetClusterIndex()
+{
+	return nClusterIndex;
+}
 AnimationObject* AnimationObject::GetChild(int nIndex)
 {
 	assert(nIndex < m_vpChild.size());
@@ -204,6 +212,26 @@ XMFLOAT4X4& AnimationObject::GetToRootTransform()
 XMFLOAT4X4& AnimationObject::GetToParentTransform()
 {
 	return m_xmf4x4ToParentTransform;
+}
+bool AnimationObject::FindObjectByNameAndSetClusterNum(const char * pName, AnimationObject* pParentObject, UINT nClusterIndex)
+{
+	if (pParentObject->m_strName == pName)
+	{
+		m_nClusterIndex = nClusterIndex;
+		return true;
+	}
+
+	for (int i = 0; i < pParentObject->GetChildCount(); i++)
+	{
+		if (FindObjectByNameAndSetClusterNum(pName, pParentObject->GetChild(i), nClusterIndex))
+			return true;
+	}
+
+	return false;
+}
+AnimationController* AnimationObject::GetAnimationControllerOrNull()
+{
+	return m_pAnimationController;
 }
 void AnimationObject::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 {

@@ -3,7 +3,7 @@
 #include "Object.h"
 
 template <typename T>
-AnimationStack<T>::AnimationStack(UINT BoneNum) : m_nCapacity(BoneNum)
+AnimationStack<T>::AnimationStack(UINT nBoneNum) : m_nCapacity(nBoneNum)
 {
 	m_nLastIndex = 0;
 	m_ppTarr = new T*[BoneNum];
@@ -44,7 +44,12 @@ bool AnimationStack<T>::empty()
 		return false;
 }
 
-AnimationController::AnimationController() : m_pAnimationResource(nullptr)
+AnimationResource & AnimationController::GetAnimationResource()
+{
+	return m_AnimationResource;
+}
+
+AnimationController::AnimationController() : m_AnimationStack(1)
 {
 }
 
@@ -53,6 +58,10 @@ AnimationController::~AnimationController()
 {
 }
 
+void AnimationController::AddBindPoseTransform(const XMFLOAT4X4& mBindPose)
+{
+	m_vBindPoses.push_back(mBindPose);
+}
 
 void AnimationController::FrameInterpolate(int iBoneNum, SRT& result)
 {
@@ -214,8 +223,8 @@ void AnimationController::SetToRootTransforms(AnimationObject* pRootObject)
 }
 void AnimationController::AdvanceAnimation(ID3D12GraphicsCommandList* pd3dCommandList, UINT fTimeElapsed, AnimationObject* pRootObject)
 {
-	SetToParentTransforms(); // 시간에 맞추어 m_xmf4x4ToParentTransform에 맞는 값을 넣어준다. 
-	SetToRootTransforms();
+	SetToParentTransforms(fTimeElapsed, pRootObject); // 시간에 맞추어 m_xmf4x4ToParentTransform에 맞는 값을 넣어준다. 
+	SetToRootTransforms(pRootObject);
 	for (UINT i = 0; i < m_vBindPoses.size() ; i++)
 	{
 		// 월드 좌표계에서 해당 노드의 좌표계로 이동시키는 행렬

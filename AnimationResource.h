@@ -18,5 +18,7 @@ class AnimationResource
 public:
 	AnimationResource();
 	~AnimationResource();
+
+	void AddAnimationStack(const FbxTime & fbxStartTime, const FbxTime & fbxEndTime, FbxAnimStack* fbxAnimationStack);
 };
 

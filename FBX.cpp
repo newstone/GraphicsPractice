@@ -8,7 +8,9 @@ FBX::FBX()
 FBX::~FBX()
 {
 }
-
+void SetFbxMatrix(XMFLOAT4X4& xmf4x4Dest, const FbxMatrix& fbxMatrix)
+{
+}
 HRESULT FBX::LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath, AnimationObject* pOutObject)
 {
 	m_pfbxSdkManager = FbxManager::Create();
@@ -44,14 +46,18 @@ HRESULT FBX::LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd
 	if (!bSuccess) 
 		return E_FAIL;
 	pOutObject->SetRoot(true);
+	AnimationController* pAnimationController = pOutObject->GetAnimationControllerOrNull();
+	pAnimationController = new AnimationController();
+
 	CreateHierarchy(pd3dDevice, pd3dCommandList, m_pfbxScene->GetNode(0), pOutObject);
-	FbxAnimStack* fs = m_pfbxScene->GetCurrentAnimationStack();
+	SetAnimation(m_pfbxScene->GetNode(0), pOutObject, pAnimationController);
 
 	pfbxImporter->Destroy();
 
 	return S_OK; 
 }
-void FBX::CreateHierarchy(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pfbxNode, AnimationObject* pParentsObject)
+void FBX::CreateHierarchy(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pfbxNode
+	, AnimationObject* pParentsObject)
 {
 	if (pfbxNode == nullptr)
 		return;
@@ -538,4 +544,135 @@ void FBX::GetColor(FbxMesh* pMesh, vector<XMFLOAT4>& xmf4Color, int nVertexID, i
 	case FbxGeometryElement::eNone:       // doesn't make much sense for UVs
 		break;
 	}
+}
+FbxAMatrix FBX::GetGeometricTransform(FbxNode *pfbxNode)
+{
+	const FbxVector4 T(pfbxNode->GetGeometricTranslation(FbxNode::eSourcePivot));
+	const FbxVector4 R(pfbxNode->GetGeometricRotation(FbxNode::eSourcePivot));
+	const FbxVector4 S(pfbxNode->GetGeometricScaling(FbxNode::eSourcePivot));
+
+	return(FbxAMatrix(T, R, S));
+}
+void FBX::GetBindposeTransform(FbxNode* pfbxNode, FbxMesh* pfbxMesh, AnimationObject* pRootObject, AnimationController* pAnimationController)
+{
+	FbxSkin* pSkin = reinterpret_cast<FbxSkin*>(pfbxMesh->GetDeformer(0, FbxDeformer::eSkin));
+
+	if (pSkin == nullptr)
+		return;
+
+	UINT nClusters(pSkin->GetClusterCount());
+	FbxAMatrix GeometryTransform(GetGeometricTransform(pfbxNode));
+	for (int i = 0; i < nClusters; i++)
+	{
+		FbxCluster* pCurrCluster = pSkin->GetCluster(i);
+
+		pRootObject->FindObjectByNameAndSetClusterNum(pCurrCluster->GetName(), pRootObject, i);
+
+		FbxAMatrix TransformMatrix;
+		FbxAMatrix TransformLinkMatrix;
+		FbxAMatrix BindposeMatrix;
+
+		pCurrCluster->GetTransformMatrix(TransformMatrix); // The transformation of the mesh at binding time
+		pCurrCluster->GetTransformLinkMatrix(TransformLinkMatrix); // The transformation of the cluster(joint) at binding time from joint space to world space
+		BindposeMatrix = TransformLinkMatrix.Inverse() * TransformMatrix * GeometryTransform;
+
+		XMFLOAT4X4 xmf4x4Bindpose;
+		SetFbxMatrix(xmf4x4Bindpose, BindposeMatrix);
+
+		pAnimationController->AddBindPoseTransform(xmf4x4Bindpose);
+	}
+}
+void FBX::GetAnimationData(FbxNode* pfbxNode, AnimationController* pAnimationController)
+{
+	FbxArray<FbxString *> fbxAnimationStackNames;
+	m_pfbxScene->FillAnimStackNameArray(fbxAnimationStackNames);
+
+	int nAnimationStacks = fbxAnimationStackNames.Size();
+	
+	for (int i = 0; i < nAnimationStacks; i++)
+	{
+		FbxString *pfbxStackName = fbxAnimationStackNames[i];
+		FbxAnimStack *pfbxAnimationStack = m_pfbxScene->FindMember<FbxAnimStack>(pfbxStackName->Buffer());
+
+		FbxTakeInfo *pfbxTakeInfo = m_pfbxScene->GetTakeInfo(*pfbxStackName);
+		FbxTime fbxStartTime, fbxEndTime;
+		if (pfbxTakeInfo != nullptr)
+		{
+			fbxStartTime = pfbxTakeInfo->mLocalTimeSpan.GetStart();
+			fbxEndTime = pfbxTakeInfo->mLocalTimeSpan.GetStop();
+		}
+		else
+		{
+			FbxTimeSpan fbxTimeLineTimeSpan;
+			m_pfbxScene->GetGlobalSettings().GetTimelineDefaultTimeSpan(fbxTimeLineTimeSpan);
+			fbxStartTime = fbxTimeLineTimeSpan.GetStart();
+			fbxEndTime = fbxTimeLineTimeSpan.GetStop();
+		}
+
+
+		for (FbxLongLong i = fbxStartTime.GetFrameCount(FbxTime::eFrames24); i <= fbxEndTime.GetFrameCount(FbxTime::eFrames24); i++)
+		{
+			FbxTime fbxCurrTime;
+			fbxCurrTime.SetFrame(i, FbxTime::eFrames24);
+			FbxAMatrix currentTransformOffset = pfbxNode->EvaluateGlobalTransform(fbxCurrTime) * geometryTransform;
+			(*currAnim)->mGlobalTransform = currentTransformOffset.Inverse() * currCluster->GetLink()->EvaluateGlobalTransform(currTime);
+
+			currAnim = &((*currAnim)->mNext);
+		}
+	}
+	FbxArrayDelete(fbxAnimationStackNames);
+
+
+
+	////////////////////////////////////////////
+	FbxAnimStack* currAnimStack = m_pfbxScene->GetSrcObject(0);
+	FbxString animStackName = currAnimStack->GetName();
+	mAnimationName = animStackName.Buffer();
+	FbxTakeInfo* takeInfo = m_pfbxScene->GetTakeInfo(animStackName);
+	FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
+	FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
+	mAnimationLength = end.GetFrameCount(FbxTime::eFrames24) - start.GetFrameCount(FbxTime::eFrames24) + 1;
+	Keyframe** currAnim = &mSkeleton.mJoints[currJointIndex].mAnimation;
+
+	for (FbxLongLong i = start.GetFrameCount(FbxTime::eFrames24); i <= end.GetFrameCount(FbxTime::eFrames24); ++i)
+	{
+		FbxTime currTime;
+		currTime.SetFrame(i, FbxTime::eFrames24);
+		*currAnim = new Keyframe();
+		(*currAnim)->mFrameNum = i;
+		FbxAMatrix currentTransformOffset = inNode->EvaluateGlobalTransform(currTime) * geometryTransform;
+		(*currAnim)->mGlobalTransform = currentTransformOffset.Inverse() * currCluster->GetLink()->EvaluateGlobalTransform(currTime);
+
+		currAnim = &((*currAnim)->mNext);
+	}
+}
+void FBX::SetAnimation(FbxNode* pfbxNode, AnimationObject* pRootObject, AnimationController* pAnimationController)
+{
+	if (pfbxNode == nullptr)
+		return;
+
+	stack<FbxNode*> fbxsNodestack;
+	fbxsNodestack.push(pfbxNode);
+
+	while (true)
+	{
+		if (fbxsNodestack.empty())
+			break;
+
+		FbxNode* pcurrNode = fbxsNodestack.top();
+		fbxsNodestack.pop();
+		FbxMesh* pFM = pcurrNode->GetMesh();
+
+		if (pFM != nullptr)
+		{
+			GetBindposeTransform(pFM->GetNode(), pFM, pRootObject, pAnimationController);
+		}
+
+		for (int i = 0; i < pcurrNode->GetChildCount(); i++)
+		{
+			fbxsNodestack.push(pfbxNode->GetChild(i));
+		}
+	}
+
+	GetAnimationData(pfbxNode, pAnimationController);
 }

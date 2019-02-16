@@ -66,10 +66,13 @@ class AnimationObject : public Object
 {
 private:
 	bool m_bRoot;
+	UINT m_nClusterIndex;
 
 	vector<AnimationObject*> m_vpChild;
 	AnimationObject* m_pParents;
 
+	AnimationController* m_pAnimationController;
+	
 	XMFLOAT4X4	m_xmf4x4ToRootTransform;
 	XMFLOAT4X4	m_xmf4x4ToParentTransform;
 public:
@@ -81,11 +84,18 @@ public:
 	void SetRoot(bool bIsRoot);
 	void AddChild(AnimationObject* pChild);
 	void SetParents(AnimationObject* pParents);
+	void SetClusterIndex(UINT nIndex);
 
+	UINT GetClusterIndex();
 	AnimationObject* GetChild(int nIndex);
 	AnimationObject* GetParentsOrNull();
 	XMFLOAT4X4& GetToRootTransform();
 	XMFLOAT4X4& GetToParentTransform();
+
+
+	bool FindObjectByNameAndSetClusterNum(const char* pName, AnimationObject* pParentObject, UINT nClusterIndex);
+
+	AnimationController* GetAnimationControllerOrNull();
 
 	int GetChildCount();
 
