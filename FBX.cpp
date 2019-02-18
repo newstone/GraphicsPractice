@@ -10,6 +10,25 @@ FBX::~FBX()
 }
 void SetFbxMatrix(XMFLOAT4X4& xmf4x4Dest, const FbxMatrix& fbxMatrix)
 {
+	xmf4x4Dest._11 = fbxMatrix.Get(0, 0);
+	xmf4x4Dest._12 = fbxMatrix.Get(0, 1);
+	xmf4x4Dest._13 = fbxMatrix.Get(0, 2);
+	xmf4x4Dest._14 = fbxMatrix.Get(0, 3);
+							  
+	xmf4x4Dest._21 = fbxMatrix.Get(1, 0);
+	xmf4x4Dest._22 = fbxMatrix.Get(1, 1);
+	xmf4x4Dest._23 = fbxMatrix.Get(1, 2);
+	xmf4x4Dest._24 = fbxMatrix.Get(1, 3);
+							  
+	xmf4x4Dest._31 = fbxMatrix.Get(2, 0);
+	xmf4x4Dest._32 = fbxMatrix.Get(2, 1);
+	xmf4x4Dest._33 = fbxMatrix.Get(2, 2);
+	xmf4x4Dest._34 = fbxMatrix.Get(2, 3);
+							  
+	xmf4x4Dest._41 = fbxMatrix.Get(3, 0);
+	xmf4x4Dest._42 = fbxMatrix.Get(3, 1);
+	xmf4x4Dest._43 = fbxMatrix.Get(3, 2);
+	xmf4x4Dest._44 = fbxMatrix.Get(3, 3);
 }
 HRESULT FBX::LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath, AnimationObject* pOutObject)
 {
@@ -553,7 +572,7 @@ FbxAMatrix FBX::GetGeometricTransform(FbxNode *pfbxNode)
 
 	return(FbxAMatrix(T, R, S));
 }
-void FBX::GetBindposeTransform(FbxNode* pfbxNode, FbxMesh* pfbxMesh, AnimationObject* pRootObject, AnimationController* pAnimationController)
+void FBX::GetAnimationData(FbxNode* pfbxNode, FbxMesh* pfbxMesh, AnimationObject* pRootObject, AnimationController* pAnimationController)
 {
 	FbxSkin* pSkin = reinterpret_cast<FbxSkin*>(pfbxMesh->GetDeformer(0, FbxDeformer::eSkin));
 
@@ -562,40 +581,22 @@ void FBX::GetBindposeTransform(FbxNode* pfbxNode, FbxMesh* pfbxMesh, AnimationOb
 
 	UINT nClusters(pSkin->GetClusterCount());
 	FbxAMatrix GeometryTransform(GetGeometricTransform(pfbxNode));
-	for (int i = 0; i < nClusters; i++)
-	{
-		FbxCluster* pCurrCluster = pSkin->GetCluster(i);
 
-		pRootObject->FindObjectByNameAndSetClusterNum(pCurrCluster->GetName(), pRootObject, i);
-
-		FbxAMatrix TransformMatrix;
-		FbxAMatrix TransformLinkMatrix;
-		FbxAMatrix BindposeMatrix;
-
-		pCurrCluster->GetTransformMatrix(TransformMatrix); // The transformation of the mesh at binding time
-		pCurrCluster->GetTransformLinkMatrix(TransformLinkMatrix); // The transformation of the cluster(joint) at binding time from joint space to world space
-		BindposeMatrix = TransformLinkMatrix.Inverse() * TransformMatrix * GeometryTransform;
-
-		XMFLOAT4X4 xmf4x4Bindpose;
-		SetFbxMatrix(xmf4x4Bindpose, BindposeMatrix);
-
-		pAnimationController->AddBindPoseTransform(xmf4x4Bindpose);
-	}
-}
-void FBX::GetAnimationData(FbxNode* pfbxNode, AnimationController* pAnimationController)
-{
 	FbxArray<FbxString *> fbxAnimationStackNames;
 	m_pfbxScene->FillAnimStackNameArray(fbxAnimationStackNames);
 
 	int nAnimationStacks = fbxAnimationStackNames.Size();
-	
-	for (int i = 0; i < nAnimationStacks; i++)
+
+	pAnimationController->GetAnimationResource().ReserveResource(nAnimationStacks, nClusters);
+
+	for (int a = 0; a < nAnimationStacks; a++)
 	{
-		FbxString *pfbxStackName = fbxAnimationStackNames[i];
+		FbxString *pfbxStackName = fbxAnimationStackNames[a];
 		FbxAnimStack *pfbxAnimationStack = m_pfbxScene->FindMember<FbxAnimStack>(pfbxStackName->Buffer());
 
 		FbxTakeInfo *pfbxTakeInfo = m_pfbxScene->GetTakeInfo(*pfbxStackName);
 		FbxTime fbxStartTime, fbxEndTime;
+
 		if (pfbxTakeInfo != nullptr)
 		{
 			fbxStartTime = pfbxTakeInfo->mLocalTimeSpan.GetStart();
@@ -609,42 +610,43 @@ void FBX::GetAnimationData(FbxNode* pfbxNode, AnimationController* pAnimationCon
 			fbxEndTime = fbxTimeLineTimeSpan.GetStop();
 		}
 
+		pAnimationController->GetAnimationResource().SetStartAndEndTime(static_cast<DWORD>(fbxStartTime.GetFrameCount(FbxTime::eFrames24))
+			, static_cast<DWORD>(fbxEndTime.GetFrameCount(FbxTime::eFrames24)));
 
-		for (FbxLongLong i = fbxStartTime.GetFrameCount(FbxTime::eFrames24); i <= fbxEndTime.GetFrameCount(FbxTime::eFrames24); i++)
+		for (int c = 0; c < nClusters; c++)
 		{
-			FbxTime fbxCurrTime;
-			fbxCurrTime.SetFrame(i, FbxTime::eFrames24);
-			FbxAMatrix currentTransformOffset = pfbxNode->EvaluateGlobalTransform(fbxCurrTime) * geometryTransform;
-			(*currAnim)->mGlobalTransform = currentTransformOffset.Inverse() * currCluster->GetLink()->EvaluateGlobalTransform(currTime);
+			FbxCluster* pCurrCluster = pSkin->GetCluster(c);
+			
+			if (a == 0) // 바인드 포즈 행렬은 각 노드에 cluster 숫자 셋은 처음 한 번만 한다.
+			{
+				pRootObject->FindObjectByNameAndSetClusterNum(pCurrCluster->GetName(), pRootObject, c);
 
-			currAnim = &((*currAnim)->mNext);
+				FbxAMatrix TransformMatrix;
+				FbxAMatrix TransformLinkMatrix;
+				FbxAMatrix BindposeMatrix;
+
+				pCurrCluster->GetTransformMatrix(TransformMatrix); // The transformation of the mesh at binding time
+				pCurrCluster->GetTransformLinkMatrix(TransformLinkMatrix); // The transformation of the cluster(joint) at binding time from joint space to world space
+				BindposeMatrix = TransformLinkMatrix.Inverse() * TransformMatrix * GeometryTransform;
+
+				XMFLOAT4X4 xmf4x4Bindpose;
+				SetFbxMatrix(xmf4x4Bindpose, BindposeMatrix);
+				
+				pAnimationController->AddBindPoseTransform(xmf4x4Bindpose);
+			}
+
+			for (FbxLongLong time = fbxStartTime.GetFrameCount(FbxTime::eFrames24); time <= fbxEndTime.GetFrameCount(FbxTime::eFrames24); time++)
+			{
+				FbxTime fbxCurrTime;
+				fbxCurrTime.SetFrame(time, FbxTime::eFrames24);
+				FbxAMatrix currentTransformOffset = pfbxNode->EvaluateGlobalTransform(fbxCurrTime) * GeometryTransform;
+				FbxAMatrix GlobalTransform = currentTransformOffset.Inverse() * pCurrCluster->GetLink()->EvaluateGlobalTransform(fbxCurrTime);
+
+				pAnimationController->GetAnimationResource().AddAnimationStack(GlobalTransform, static_cast<DWORD>(time), a, c);
+			}
 		}
 	}
 	FbxArrayDelete(fbxAnimationStackNames);
-
-
-
-	////////////////////////////////////////////
-	FbxAnimStack* currAnimStack = m_pfbxScene->GetSrcObject(0);
-	FbxString animStackName = currAnimStack->GetName();
-	mAnimationName = animStackName.Buffer();
-	FbxTakeInfo* takeInfo = m_pfbxScene->GetTakeInfo(animStackName);
-	FbxTime start = takeInfo->mLocalTimeSpan.GetStart();
-	FbxTime end = takeInfo->mLocalTimeSpan.GetStop();
-	mAnimationLength = end.GetFrameCount(FbxTime::eFrames24) - start.GetFrameCount(FbxTime::eFrames24) + 1;
-	Keyframe** currAnim = &mSkeleton.mJoints[currJointIndex].mAnimation;
-
-	for (FbxLongLong i = start.GetFrameCount(FbxTime::eFrames24); i <= end.GetFrameCount(FbxTime::eFrames24); ++i)
-	{
-		FbxTime currTime;
-		currTime.SetFrame(i, FbxTime::eFrames24);
-		*currAnim = new Keyframe();
-		(*currAnim)->mFrameNum = i;
-		FbxAMatrix currentTransformOffset = inNode->EvaluateGlobalTransform(currTime) * geometryTransform;
-		(*currAnim)->mGlobalTransform = currentTransformOffset.Inverse() * currCluster->GetLink()->EvaluateGlobalTransform(currTime);
-
-		currAnim = &((*currAnim)->mNext);
-	}
 }
 void FBX::SetAnimation(FbxNode* pfbxNode, AnimationObject* pRootObject, AnimationController* pAnimationController)
 {
@@ -665,7 +667,7 @@ void FBX::SetAnimation(FbxNode* pfbxNode, AnimationObject* pRootObject, Animatio
 
 		if (pFM != nullptr)
 		{
-			GetBindposeTransform(pFM->GetNode(), pFM, pRootObject, pAnimationController);
+			GetAnimationData(pFM->GetNode(), pFM, pRootObject, pAnimationController);
 		}
 
 		for (int i = 0; i < pcurrNode->GetChildCount(); i++)
@@ -673,6 +675,4 @@ void FBX::SetAnimation(FbxNode* pfbxNode, AnimationObject* pRootObject, Animatio
 			fbxsNodestack.push(pfbxNode->GetChild(i));
 		}
 	}
-
-	GetAnimationData(pfbxNode, pAnimationController);
 }

@@ -63,7 +63,10 @@ void AnimationController::AddBindPoseTransform(const XMFLOAT4X4& mBindPose)
 	m_vBindPoses.push_back(mBindPose);
 }
 
-void AnimationController::FrameInterpolate(int iBoneNum, SRT& result)
+UINT AnimationController::GetIndex(const DWORD& nTime) const
+{
+};
+void AnimationController::FrameInterpolate(int iBoneNum, SQT& result)
 {
 	float prev;
 	float next;
@@ -115,14 +118,15 @@ void AnimationController::FrameInterpolate(int iBoneNum, SRT& result)
 		result.T.z = m * x + b;
 	}
 }
-void AnimationController::ChangeInterpolate(int iBoneNum, float fTime, SRT& result)
+void AnimationController::ChangeInterpolate(UINT nCluster, const DWORD& nTime, SQT& result)
 {
 	float fTimeRate = fTime / CHANGE_TIME; // 0 ~ 1»çÀÌ°ª
 
+	const UINT nIndex(GetIndex(nTime));
 	float m;
 	float b;
 
-	result.S = XMFLOAT3(fRendererScale, fRendererScale, fRendererScale);
+	result.S = m_AnimationResource.GetAnimInfor(nCluster)[nIndex].srt.S;
 
 	if (m_pRootObject->m_pAnimationTime->m_iNewState >= 0)
 	{

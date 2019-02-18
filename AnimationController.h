@@ -1,6 +1,5 @@
 #pragma once
 #include "AnimationResource.h"
-#include "AnimationTime.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -30,17 +29,16 @@ class AnimationController
 
 	AnimationStack<AnimationObject> m_AnimationStack;
 public:
-	void FrameInterpolate(int iBoneNum, SRT& result);
-	void ChangeInterpolate(int iBoneNum, float fTime, SRT& result);
+	void FrameInterpolate(int iBoneNum, SQT& result);
+	void ChangeInterpolate(UINT nCluster, const DWORD& nTime, SQT& result);
 	void SetToParentTransforms(UINT fTimeElapsed, AnimationObject* pRootObject);
 	void SetToRootTransforms(AnimationObject* pRootObject);
 
 	void AddBindPoseTransform(const XMFLOAT4X4& mBindPose);
-
 	void AdvanceAnimation(ID3D12GraphicsCommandList* pd3dCommandList, UINT fTimeElapsed, AnimationObject* pRootObject);
 
 	AnimationResource& GetAnimationResource();
-
+	UINT GetIndex(const DWORD& nTime) const;
 	AnimationController();
 	~AnimationController();
 };

@@ -1,24 +1,29 @@
 #pragma once
+#include "AnimationTime.h"
 
-struct AnimInfo
-{
-	UINT nTime;
-	SRT srt;
-};
-struct SRT
+struct SQT
 {
 	XMFLOAT3 S;
-	XMFLOAT4 R;
+	XMFLOAT4 Q;
 	XMFLOAT3 T;
+};
+struct AnimInfo
+{
+	DWORD nTime;
+	SQT srt;
 };
 
 class AnimationResource
 {
-	vector<AnimInfo> m_vAnimation;
+	vector<vector<vector<AnimInfo>>> m_v3Animation;
+	AnimationTime m_AnimationTime;
 public:
 	AnimationResource();
 	~AnimationResource();
 
-	void AddAnimationStack(const FbxTime & fbxStartTime, const FbxTime & fbxEndTime, FbxAnimStack* fbxAnimationStack);
+	void ReserveResource(UINT nAnimation, UINT nCluster);
+	vector<AnimInfo>& GetAnimInfo(UINT nAimation, UINT nCluster);
+	void AddAnimationStack(FbxAMatrix& fbxAnimationMatrix, const DWORD& nTime, UINT nAnimation, UINT nCluster);
+	void SetStartAndEndTime(const DWORD & fbxStartTime, const DWORD & fbxEndTime);
 };
 
