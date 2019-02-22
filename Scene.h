@@ -24,6 +24,6 @@ public:
 
 	void SetCamera(Camera* pCamera);
 
-	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList);
+	virtual void Render(ID3D12GraphicsCommandList *pd3dCommandList, UINT fTimeElapsed);
 };
 

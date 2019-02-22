@@ -2,7 +2,7 @@
 #include "Material.h"
 
 
-Material::Material()
+Material::Material() : m_pTexture(nullptr)
 {
 }
 

@@ -53,8 +53,8 @@ Object::Object() :  m_nMeshIndex(0)
 
 Object::~Object()
 {
-	for (int i = 0; i < m_vpRenderer.size(); i++)
-		delete m_vpRenderer[i];
+	if(m_pRenderer != nullptr)
+		delete m_pRenderer;
 
 	for (int i = 0; i < m_vpMeshes.size(); i++)
 		delete m_vpMeshes[i];
@@ -85,11 +85,12 @@ void Object::UpdateShaderVariables(ID3D12GraphicsCommandList *pd3dCommandList, U
 
 	XMStoreFloat4x4(&m_pMappedObjectInfo->xmf4x4World, XMMatrixTranspose(XMLoadFloat4x4(&m_ObjectInfo.xmf4x4World)));
 
-	pd3dCommandList->SetGraphicsRootConstantBufferView(RootParameterIndex, m_d3dcbObjects->GetGPUVirtualAddress());
+	m_pRenderer->SetGraphicsRootDescriptorTable(pd3dCommandList, OBJECT);
 }
 void Object::CreateRenderer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList* pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature)
 {
-	m_vpRenderer[0]->CreateRenderer(pd3dDevice, pd3dCommandList, pd3dGraphicsRootSignature);
+	m_pRenderer->CreateRenderer(pd3dDevice, pd3dCommandList, pd3dGraphicsRootSignature);
+	m_pRenderer->CreateConstantBufferViews(pd3dDevice, pd3dCommandList, 1, m_d3dcbObjects.Get(), sizeof(OBJECT_INFO));
 }
 void Object::SetName(const string& strName)
 {
@@ -101,7 +102,13 @@ void Object::SetMesh(Mesh* pMesh)
 }
 void Object::SetRenderer(Renderer* pRenderer)
 {
-	m_vpRenderer.push_back(pRenderer);
+	if (m_pRenderer == nullptr)
+		m_pRenderer = pRenderer;
+	else
+	{
+		delete m_pRenderer;
+		m_pRenderer = pRenderer;
+	}
 }
 
 void Object::SetPosition(const XMFLOAT3& xmf3Position)
@@ -128,7 +135,8 @@ Mesh* Object::GetMesh(int nIndex)
 void Object::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	UpdateShaderVariables(pd3dCommandList, 2);
-	m_vpRenderer[0]->OnPrepareForRender(pd3dCommandList);
+	m_pRenderer->OnPrepareForRender(pd3dCommandList);
+
 	for (int i = 0; i < m_vpMeshes.size(); i++)
 		m_vpMeshes[i]->Render(pd3dCommandList);
 }
@@ -147,7 +155,7 @@ StaticObject::~StaticObject()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-AnimationObject::AnimationObject() : Object(), m_bRoot(false), m_pParents(nullptr), m_nClusterIndex(INVALID)
+AnimationObject::AnimationObject() : Object(), m_bRoot(false), m_pParents(nullptr), m_nClusterIndex(INVALID), m_AnimationStack(nullptr)
 {
 	XMStoreFloat4x4(&m_xmf4x4ToRootTransform, XMMatrixIdentity());
 	XMStoreFloat4x4(&m_xmf4x4ToParentTransform, XMMatrixIdentity());
@@ -173,6 +181,7 @@ void AnimationObject::RelaseUploadBuffer()
 void AnimationObject::SetRoot(bool bIsRoot)
 {
 	m_bRoot = bIsRoot;
+	m_AnimationStack = new AnimationStack<AnimationObject>(INITIAL);
 }
 void AnimationObject::AddChild(AnimationObject* pChild)
 {
@@ -186,11 +195,15 @@ void AnimationObject::SetParents(AnimationObject* pParents)
 }
 void AnimationObject::SetClusterIndex(UINT nIndex)
 {
-	nClusterIndex = nIndex;
+	m_nClusterIndex = nIndex;
 }
 UINT AnimationObject::GetClusterIndex()
 {
-	return nClusterIndex;
+	return m_nClusterIndex;
+}
+bool AnimationObject::GetRoot()
+{
+	return m_bRoot;
 }
 AnimationObject* AnimationObject::GetChild(int nIndex)
 {
@@ -213,6 +226,36 @@ XMFLOAT4X4& AnimationObject::GetToParentTransform()
 {
 	return m_xmf4x4ToParentTransform;
 }
+void AnimationObject::SetAnimationTransform(UINT nIndex, const XMFLOAT4X4& xmf4x4Animation)
+{
+	XMStoreFloat4x4(&m_pMappedObjectInfo->xmf4x4Animation[nIndex], XMMatrixTranspose(XMLoadFloat4x4(&xmf4x4Animation)));
+}
+AnimationObject* AnimationObject::GetObjectOrNullByClursterNum(UINT nCluster)
+{
+	if (!m_bRoot)
+		return nullptr;
+	else
+	{
+		m_AnimationStack->push(this);
+
+		while (true)
+		{
+			if (m_AnimationStack->empty())
+				break;
+
+			AnimationObject* pCurr(m_AnimationStack->top());
+			if (pCurr->GetClusterIndex() == nCluster)
+				return pCurr;
+
+			for (int i = 0; i < pCurr->GetChildCount(); i++)
+			{
+				m_AnimationStack->push(pCurr->GetChild(i));
+			}
+		}
+	}
+
+	return nullptr;
+}
 bool AnimationObject::FindObjectByNameAndSetClusterNum(const char * pName, AnimationObject* pParentObject, UINT nClusterIndex)
 {
 	if (pParentObject->m_strName == pName)
@@ -233,12 +276,14 @@ AnimationController* AnimationObject::GetAnimationControllerOrNull()
 {
 	return m_pAnimationController;
 }
-void AnimationObject::Render(ID3D12GraphicsCommandList* pd3dCommandList)
+void AnimationObject::Render(ID3D12GraphicsCommandList* pd3dCommandList, UINT fTimeElapsed)
 {
 	if (m_bRoot)
 	{
 		UpdateShaderVariables(pd3dCommandList, 2);
-		m_vpRenderer[0]->OnPrepareForRender(pd3dCommandList);
+		m_pRenderer->OnPrepareForRender(pd3dCommandList);
+		if(m_pAnimationController != nullptr)
+			m_pAnimationController->AdvanceAnimation(pd3dCommandList, fTimeElapsed, this);
 	}
 
 	for (int i = 0; i < m_vpMeshes.size(); i++)
@@ -246,7 +291,7 @@ void AnimationObject::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 
 	for (int i = 0; i < m_vpChild.size(); i++)
 	{
-		m_vpChild[i]->Render(pd3dCommandList);
+		m_vpChild[i]->Render(pd3dCommandList, fTimeElapsed);
 	}
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

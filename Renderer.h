@@ -1,6 +1,8 @@
 #pragma once
 #include "Material.h"
 
+#define OBJECT 4
+
 class Renderer
 {
 protected:
@@ -32,6 +34,9 @@ public:
 	void CreateCbvAndSrvDescriptorHeaps(ID3D12Device * pd3dDevice, ID3D12GraphicsCommandList * pd3dCommandList, int nConstantBufferViews, int nShaderResourceViews);
 	void CreateConstantBufferViews(ID3D12Device * pd3dDevice, ID3D12GraphicsCommandList * pd3dCommandList, int nConstantBufferViews, ID3D12Resource * pd3dConstantBuffers, UINT nStride);
 	void CreateShaderResourceViews(ID3D12Device * pd3dDevice, ID3D12GraphicsCommandList * pd3dCommandList, Texture * pTexture, UINT nRootParameterStartIndex, bool bAutoIncrement);
+
+	void AddMaterial(Material* pMaterial);
+	void SetGraphicsRootDescriptorTable(ID3D12GraphicsCommandList * pd3dCommandList, UINT nRootParameter);
 
 	void OnPrepareForRender	(ID3D12GraphicsCommandList * pd3dCommandList);
 

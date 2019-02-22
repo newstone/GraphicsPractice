@@ -6,6 +6,7 @@
 struct OBJECT_INFO
 {
 	XMFLOAT4X4 xmf4x4World;
+	XMFLOAT4X4 xmf4x4Animation[100];
 };
 
 class Object
@@ -24,7 +25,7 @@ protected:
 	ComPtr<ID3D12DescriptorHeap> m_d3dDescriptorHeap;
 	ComPtr<ID3D12Resource> m_d3dcbObjects;
 
-	vector<Renderer*> m_vpRenderer;
+	Renderer* m_pRenderer;
 public:
 	Object();
 	~Object();
@@ -75,6 +76,8 @@ private:
 	
 	XMFLOAT4X4	m_xmf4x4ToRootTransform;
 	XMFLOAT4X4	m_xmf4x4ToParentTransform;
+
+	AnimationStack<AnimationObject>* m_AnimationStack;
 public:
 	AnimationObject();
 	~AnimationObject();
@@ -86,12 +89,15 @@ public:
 	void SetParents(AnimationObject* pParents);
 	void SetClusterIndex(UINT nIndex);
 
+	bool GetRoot();
 	UINT GetClusterIndex();
 	AnimationObject* GetChild(int nIndex);
 	AnimationObject* GetParentsOrNull();
 	XMFLOAT4X4& GetToRootTransform();
 	XMFLOAT4X4& GetToParentTransform();
+	AnimationObject* GetObjectOrNullByClursterNum(UINT nCluster);
 
+	void SetAnimationTransform(UINT nIndex, const XMFLOAT4X4& xmf4x4Animation);
 
 	bool FindObjectByNameAndSetClusterNum(const char* pName, AnimationObject* pParentObject, UINT nClusterIndex);
 
@@ -99,7 +105,7 @@ public:
 
 	int GetChildCount();
 
-	void Render(ID3D12GraphicsCommandList* pd3dCommandList);
+	void Render(ID3D12GraphicsCommandList* pd3dCommandList, UINT fTimeElapsed);
 };
 
 

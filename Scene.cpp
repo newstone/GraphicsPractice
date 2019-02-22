@@ -31,10 +31,10 @@ void Scene::LoadModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dC
 {
 	m_pFBX = new FBX();
 
-	AnimationObject* m_pObject = new AnimationObject();
+	AnimationObject* m_pObject(new AnimationObject());
 	m_pFBX->LoadFBXFile(pd3dDevice, pd3dCommandList, strPath, m_pObject);
 	m_pObject->SetPosition(rand() % 50 - 100, rand() % 50 - 100, rand() % 50 - 100);
-
+	
 	m_vObjects.push_back(m_pObject);
 	m_sReleaseUploadBuffer.push(m_pObject);
 }
@@ -50,14 +50,14 @@ void Scene::BuildObjects(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd
 	{
 		Renderer* pDR = new DiffuseRenderer();
 		m_vObjects[m_vObjects.size() - 1]->SetRenderer(pDR);
-		m_vObjects[m_vObjects.size() - 1]->CreateRenderer(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get());
 		m_vObjects[m_vObjects.size() - 1]->CreateShaderVariables(pd3dDevice, pd3dCommandList);
+		m_vObjects[m_vObjects.size() - 1]->CreateRenderer(pd3dDevice, pd3dCommandList, m_pd3dGraphicsRootSignature.Get());
 	}
 }
 
 ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice)
 {
-	D3D12_DESCRIPTOR_RANGE pd3dDescriptorRanges[1];
+	D3D12_DESCRIPTOR_RANGE pd3dDescriptorRanges[2];
 
 	pd3dDescriptorRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	pd3dDescriptorRanges[0].NumDescriptors = 1;
@@ -65,7 +65,13 @@ ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice
 	pd3dDescriptorRanges[0].RegisterSpace = 0;
 	pd3dDescriptorRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	D3D12_ROOT_PARAMETER pd3dRootParameters[4];
+	pd3dDescriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	pd3dDescriptorRanges[1].NumDescriptors = 1;
+	pd3dDescriptorRanges[1].BaseShaderRegister = 3;
+	pd3dDescriptorRanges[1].RegisterSpace = 0;
+	pd3dDescriptorRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	D3D12_ROOT_PARAMETER pd3dRootParameters[5];
 
 	pd3dRootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	pd3dRootParameters[0].Descriptor.ShaderRegister = 0; //Player
@@ -86,6 +92,11 @@ ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice
 	pd3dRootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
 	pd3dRootParameters[3].DescriptorTable.pDescriptorRanges = &pd3dDescriptorRanges[0];
 	pd3dRootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	pd3dRootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	pd3dRootParameters[4].DescriptorTable.NumDescriptorRanges = 1;
+	pd3dRootParameters[4].DescriptorTable.pDescriptorRanges = &pd3dDescriptorRanges[1];
+	pd3dRootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
 
 	D3D12_STATIC_SAMPLER_DESC pd3dSamplerDescs[2];
 
@@ -146,7 +157,7 @@ ID3D12RootSignature* Scene::CreateGraphicsRootSignature(ID3D12Device *pd3dDevice
 	return(m_pd3dGraphicsRootSignature.Get());
 }
 
-void Scene::Render(ID3D12GraphicsCommandList *pd3dCommandList)
+void Scene::Render(ID3D12GraphicsCommandList *pd3dCommandList, UINT fTimeElapsed)
 {
 	pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get());
 	
@@ -156,6 +167,6 @@ void Scene::Render(ID3D12GraphicsCommandList *pd3dCommandList)
 	for (int i = 0; i < m_vObjects.size(); i++)
 	{
 		if (m_vObjects[i] != nullptr)
-			m_vObjects[i]->Render(pd3dCommandList);
+			m_vObjects[i]->Render(pd3dCommandList, fTimeElapsed);
 	}
 }

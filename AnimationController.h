@@ -3,6 +3,10 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
+#define INITIAL 10
+#define CHANG_INDEX -1
+#define CHANGE_TIME 500
+
 class AnimationObject;
 
 template <typename T>
@@ -25,11 +29,13 @@ private:
 class AnimationController
 {
 	AnimationResource m_AnimationResource;
-	vector<XMFLOAT4X4>	m_vBindPoses;
+	UINT m_nCurrentAnimation;
+	UINT m_nNewAnimation;
 
+	UINT m_nSaveLastFrame;
 	AnimationStack<AnimationObject> m_AnimationStack;
 public:
-	void FrameInterpolate(int iBoneNum, SQT& result);
+	void FrameInterpolate(UINT nCluster, const DWORD& nTime, SQT& result);
 	void ChangeInterpolate(UINT nCluster, const DWORD& nTime, SQT& result);
 	void SetToParentTransforms(UINT fTimeElapsed, AnimationObject* pRootObject);
 	void SetToRootTransforms(AnimationObject* pRootObject);
@@ -38,7 +44,7 @@ public:
 	void AdvanceAnimation(ID3D12GraphicsCommandList* pd3dCommandList, UINT fTimeElapsed, AnimationObject* pRootObject);
 
 	AnimationResource& GetAnimationResource();
-	UINT GetIndex(const DWORD& nTime) const;
+	UINT GetIndex(const DWORD& nTime, UINT nCluster);
 	AnimationController();
 	~AnimationController();
 };

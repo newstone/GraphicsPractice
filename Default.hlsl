@@ -26,7 +26,13 @@ struct VS_INPUT
 	float3 normal : NORMAL;
 	float2 uv : UV;
 	uint4 cluster : CLUSTER;
-	float4 weight : WEIGHT;
+	float4 weight : WEIGHT; 
+};
+
+cbuffer cbGameObjectInfo : register(b3)
+{
+	matrix		gmtxGameObject;
+	matrix		gmtxAnimations[100];
 };
 
 struct VS_OUTPUT
@@ -39,8 +45,22 @@ VS_OUTPUT VS(VS_INPUT input, uint nVertexID : SV_VertexID)
 {
 	VS_OUTPUT output;
 
-	float3 positionW = mul(float4(input.position, 1.0f), gmtxWorld);
+	float4 fWeight = { 0.0f, 0.0f, 0.0f, 0.0f };
+	fWeight[0] = input.weight.x;
+	fWeight[1] = input.weight.y;
+	fWeight[2] = input.weight.z;
+	fWeight[3] = input.weight.w;
+
+	float3 position = float3(0.0f, 0.0f, 0.0f);
+
+	for (int i = 0; i < 4; i++)
+	{
+		position += fWeight[i] * mul(float4(input.position, 1.0f), gmtxAnimations[input.cluster[i]]).xyz;
+	}
+
+	float3 positionW = mul(float4(position, 1.0f), gmtxWorld);
 	output.position = mul(mul(float4(positionW, 1.0f), gmtxView), gmtxProjection);
+
 
 	return(output);
 }

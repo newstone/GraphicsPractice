@@ -14,7 +14,7 @@ void SetFbxMatrix(XMFLOAT4X4& xmf4x4Dest, const FbxMatrix& fbxMatrix)
 	xmf4x4Dest._12 = fbxMatrix.Get(0, 1);
 	xmf4x4Dest._13 = fbxMatrix.Get(0, 2);
 	xmf4x4Dest._14 = fbxMatrix.Get(0, 3);
-							  
+							    
 	xmf4x4Dest._21 = fbxMatrix.Get(1, 0);
 	xmf4x4Dest._22 = fbxMatrix.Get(1, 1);
 	xmf4x4Dest._23 = fbxMatrix.Get(1, 2);

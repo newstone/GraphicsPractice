@@ -23,3 +23,20 @@ TotalTime& AnimationTime::GetTotalTime(UINT nAnimationCount)
 {
 	return m_vTimes[nAnimationCount];
 }
+
+DWORD& AnimationTime::GetStartTime()
+{
+	return m_dwdStartTime;
+}
+void AnimationTime::SetStartTime(const DWORD& dwdTime)
+{
+	m_dwdStartTime = dwdTime;
+}
+DWORD& AnimationTime::GetCurrTime()
+{
+	return m_dwdCurrTime;
+}
+void AnimationTime::SetCurrTime(const DWORD& dwdTime)
+{
+	m_dwdCurrTime = dwdTime;
+}

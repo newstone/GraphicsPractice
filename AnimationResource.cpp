@@ -9,12 +9,27 @@ AnimationResource::AnimationResource()
 AnimationResource::~AnimationResource()
 {
 }
+XMFLOAT4X4& AnimationResource::GetBindPoseTransform(UINT nIndex)
+{
+	return m_vBindPoses[nIndex];
+}
+UINT AnimationResource::GetBindPoseTransformSize()
+{
+	return m_vBindPoses.size();
+}
+AnimationTime& AnimationResource::GetAnimationTime()
+{
+	return m_AnimationTime;
+}
 
 vector<AnimInfo>& AnimationResource::GetAnimInfo(UINT nAimation, UINT nCluster)
 {
 	return m_v3Animation[nAimation][nCluster];
 }
-
+void AnimationResource::AddBindPoseTransform(const XMFLOAT4X4& mBindPose)
+{
+	m_vBindPoses.push_back(mBindPose);
+}
 void AnimationResource::AddAnimationStack(FbxAMatrix& fbxAnimationMatrix, const DWORD& nTime, UINT nAnimation, UINT nCluster)
 {
 	SQT sqt;
