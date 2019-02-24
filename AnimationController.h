@@ -28,6 +28,8 @@ private:
 //
 class AnimationController
 {
+	UINT m_nControllerIndex;
+
 	AnimationResource m_AnimationResource;
 	UINT m_nCurrentAnimation;
 	UINT m_nNewAnimation;
@@ -45,7 +47,7 @@ public:
 
 	AnimationResource& GetAnimationResource();
 	UINT GetIndex(const DWORD& nTime, UINT nCluster);
-	AnimationController();
+	AnimationController(UINT nIndex);
 	~AnimationController();
 };
 

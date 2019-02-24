@@ -67,7 +67,7 @@ class AnimationObject : public Object
 {
 private:
 	bool m_bRoot;
-	UINT m_nClusterIndex;
+	vector<UINT> m_vClusterIndices;
 
 	vector<AnimationObject*> m_vpChild;
 	AnimationObject* m_pParents;
@@ -82,30 +82,35 @@ public:
 	AnimationObject();
 	~AnimationObject();
 
+	void CreateAnimationController(UINT nIndex);
 	virtual void RelaseUploadBuffer();
 
 	void SetRoot(bool bIsRoot);
+	void AddClusterIndex(UINT nIndex);
 	void AddChild(AnimationObject* pChild);
 	void SetParents(AnimationObject* pParents);
-	void SetClusterIndex(UINT nIndex);
+	void AdjustClusterIndex(UINT nControllerIndex);
 
 	bool GetRoot();
-	UINT GetClusterIndex();
+	UINT GetClusterIndicesSize();
+	UINT GetClusterIndex(UINT nControllerIndex);
 	AnimationObject* GetChild(int nIndex);
 	AnimationObject* GetParentsOrNull();
 	XMFLOAT4X4& GetToRootTransform();
 	XMFLOAT4X4& GetToParentTransform();
-	AnimationObject* GetObjectOrNullByClursterNum(UINT nCluster);
+	AnimationObject* GetObjectOrNullByClursterNum(UINT nCluster, UINT nControllerIndex);
 
+	void UpdateTransform(XMFLOAT4X4 *pxmf4x4Parent);
 	void SetAnimationTransform(UINT nIndex, const XMFLOAT4X4& xmf4x4Animation);
 
+	AnimationObject* FindObjectByName(const char * pName, AnimationObject* pParentObject);
 	bool FindObjectByNameAndSetClusterNum(const char* pName, AnimationObject* pParentObject, UINT nClusterIndex);
 
 	AnimationController* GetAnimationControllerOrNull();
 
 	int GetChildCount();
 
-	void Render(ID3D12GraphicsCommandList* pd3dCommandList, UINT fTimeElapsed);
+	void Render(ID3D12GraphicsCommandList* pd3dCommandList, UINT fTimeElapsed, AnimationObject* pRoot);
 };
 
 

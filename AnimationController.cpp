@@ -49,7 +49,7 @@ AnimationResource & AnimationController::GetAnimationResource()
 	return m_AnimationResource;
 }
 
-AnimationController::AnimationController() : m_AnimationStack(INITIAL), m_nCurrentAnimation(0), m_nNewAnimation(INVALID)
+AnimationController::AnimationController(UINT nIndex) : m_AnimationStack(INITIAL), m_nCurrentAnimation(0), m_nNewAnimation(INVALID), m_nControllerIndex(nIndex)
 {
 }
 
@@ -69,6 +69,7 @@ UINT AnimationController::GetIndex(const DWORD& nTime, UINT nCluster)
 		if (m_AnimationResource.GetAnimInfo(m_nCurrentAnimation, nCluster)[i].nTime > nTime)
 			return (i - 1);
 	}
+	return 0;
 };
 void AnimationController::FrameInterpolate(UINT nCluster, const DWORD& nTime, SQT& result)
 {
@@ -155,31 +156,34 @@ void AnimationController::SetToParentTransforms(UINT fTimeElapsed, AnimationObje
 {
 	m_AnimationStack.push(pRootObject); // 루트 노드 부터 시작
 
-	for (int i = 0;; i++)
-	{// 스택에 더이상 노드가 없으면 루프를 빠져 나온다.
-		if (m_AnimationStack.empty())
-			break;
+	while(!m_AnimationStack.empty())
+	{
 		// 애니메이션 데이터를 저장할 때, 깊이우선 방식으로 저장했기
 		// 그 순서대로 노드를 돌면서 행렬을 채워 넣는다.
 		AnimationObject* TargetFrame = m_AnimationStack.top();
 
 		if (TargetFrame != pRootObject)
 		{
+			UINT nCluster(TargetFrame->GetClusterIndex(m_nControllerIndex));
 			SQT sqt;
 			// 애니메이션과 애니메이션 사이는 특정시간동안 보간하여
 			// 애니메이션 전환을 자연스럽게 한다.
-			if (m_nCurrentAnimation != CHANG_INDEX)
-				FrameInterpolate(i, fTimeElapsed, sqt);
-			else
-				ChangeInterpolate(i, fTimeElapsed, sqt);
 
-			XMVECTOR S = XMLoadFloat3(&sqt.S);
-			XMVECTOR P = XMLoadFloat3(&sqt.T);
-			XMVECTOR Q = XMLoadFloat4(&sqt.Q);
+			if (nCluster != INVALID)
+			{
+				if (m_nCurrentAnimation != CHANG_INDEX)
+					FrameInterpolate(nCluster, fTimeElapsed, sqt);
+				else
+					ChangeInterpolate(nCluster, fTimeElapsed, sqt);
 
-			XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-			// 애니메이션데이터로 부터 얻어진 Position값과 Quaternion값을 가지고 행렬을 만들어, ToParent행렬에 대입.
-			XMStoreFloat4x4(&TargetFrame->GetToParentTransform(), XMMatrixAffineTransformation(S, zero, Q, P));
+				XMVECTOR S = XMLoadFloat3(&sqt.S);
+				XMVECTOR P = XMLoadFloat3(&sqt.T);
+				XMVECTOR Q = XMLoadFloat4(&sqt.Q);
+
+				XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+				// 애니메이션데이터로 부터 얻어진 Position값과 Quaternion값을 가지고 행렬을 만들어, ToParent행렬에 대입.
+				XMStoreFloat4x4(&TargetFrame->GetToParentTransform(), XMMatrixAffineTransformation(S, zero, Q, P));
+			}
 		}
 
 		for (int i = 0; i < TargetFrame->GetChildCount(); i++)
@@ -202,10 +206,10 @@ void AnimationController::SetToRootTransforms(AnimationObject* pRootObject)
 		// 루트의 자식 노드부터 시작해서, 위부터 아래로 ToParent행렬을 곱해서 갱신해, ToRoot행렬을 만든다.
 		if (TargetFrame->GetParentsOrNull() != nullptr && !TargetFrame->GetParentsOrNull()->GetRoot())
 		{
-			TargetFrame->GetToParentTransform() = Matrix4x4::Multiply(TargetFrame->GetToParentTransform(), TargetFrame->GetParentsOrNull()->GetToParentTransform());;
+			TargetFrame->GetToRootTransform() = Matrix4x4::Multiply(TargetFrame->GetToParentTransform(), TargetFrame->GetParentsOrNull()->GetToParentTransform());
 		}
 		else // 위로 부모 노드가 없으면 자신의 ToParent행렬이 곧 ToRoot행렬이 된다.
-			TargetFrame->GetToParentTransform() = TargetFrame->GetToParentTransform();
+			TargetFrame->GetToRootTransform() = TargetFrame->GetToParentTransform();
 
 		for (int i = 0; i < TargetFrame->GetChildCount(); i++)
 		{
@@ -226,22 +230,25 @@ void AnimationController::AdvanceAnimation(ID3D12GraphicsCommandList* pd3dComman
 		m_AnimationResource.GetAnimationTime().SetCurrTime(dwdTime);
 	}
 
-	SetToParentTransforms(dwdTime, pRootObject); // 처음으로 부터 경과된 시간
+	SetToParentTransforms(dwdTime, pRootObject); 
 	SetToRootTransforms(pRootObject);
 	
 	XMFLOAT4X4 xmf4x4Animation(Matrix4x4::Identity());
+	
+	assert(pRootObject != nullptr);
 
 	for (UINT i = 0; i < m_AnimationResource.GetBindPoseTransformSize(); i++)
 	{
 		// 월드 좌표계에서 해당 노드의 좌표계로 이동시키는 행렬
 		XMMATRIX offset = XMLoadFloat4x4(&m_AnimationResource.GetBindPoseTransform(i));
-		AnimationObject* m_pBoneObject(pRootObject->GetObjectOrNullByClursterNum(i));
+		AnimationObject* m_pBoneObject(pRootObject->GetObjectOrNullByClursterNum(i, m_nControllerIndex));
 		// 애니메이션 정보를 담고, 해당 노드의 좌표계에서 월드 좌표계로 이동시키는 행렬
+
 		XMMATRIX toRoot = XMLoadFloat4x4(&m_pBoneObject->GetToRootTransform());
 		XMMATRIX finalTransform = XMMatrixMultiply(XMMatrixTranspose(offset), (toRoot));
-
+	
 		XMStoreFloat4x4(&xmf4x4Animation, XMMatrixTranspose(finalTransform));
-
+	
 		pRootObject->SetAnimationTransform(i, xmf4x4Animation);
 	}
 }

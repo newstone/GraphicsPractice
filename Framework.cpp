@@ -122,31 +122,28 @@ void Framework::BuildScene()
 	HRESULT hresult(m_d3dCommandAllocator->Reset());
 	hresult = m_d3dCommandList->Reset(m_d3dCommandAllocator.Get(), nullptr);
 
+	m_pScene = new Scene();
+	m_pScene->CreateGraphicsRootSignature(m_d3dDevice.Get());
+	
+	string strPath = "SciFi_Space_Drone.FBX";
+	m_pScene->LoadModel(m_d3dDevice.Get(), m_d3dCommandList.Get(), strPath);
+
+	m_pPlayer = new Player();
 	m_pCamera = new Camera();
 
 	if (m_pCamera)
 	{
 		m_pCamera->CreateShaderVariables(m_d3dDevice.Get(), m_d3dCommandList.Get());
+		m_pPlayer->SetCamera(m_pCamera);
+		m_pScene->SetCamera(m_pCamera);
 	}
 
-	m_pScene = new Scene();
-	m_pScene->CreateGraphicsRootSignature(m_d3dDevice.Get());
-	
-	string strPath = "space_marine.FBX";
-	
-	m_pScene->LoadModel(m_d3dDevice.Get(), m_d3dCommandList.Get(), strPath);
-	m_pScene->BuildObjects(m_d3dDevice.Get(), m_d3dCommandList.Get());
-
-	m_pPlayer = new Player();
-
-	m_d3dCommandList->Close();
+	hresult = m_d3dCommandList->Close();
 	ID3D12CommandList* ppCommandLists[] = { m_d3dCommandList.Get() };
 	m_d3dCommandQueue->ExecuteCommandLists(1, ppCommandLists);
 
 	WaitForGpuComplete();
 	
-	m_pPlayer->SetCamera(m_pCamera);
-	m_pScene->SetCamera(m_pCamera);
 	m_pScene->ReleaseUploadBuffer();
 
 	m_Timer.Reset();
@@ -426,6 +423,7 @@ void Framework::Update()
 }
 void Framework::Run()
 {
+	m_Timer.Tick(0.0f);
 	ProcessInput();
 
 	HRESULT hresult (m_d3dCommandAllocator->Reset());
@@ -448,7 +446,7 @@ void Framework::Run()
 	m_d3dCommandList->ClearDepthStencilView(d3dDsvCPUDescriptorHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, NULL);
 	m_d3dCommandList->OMSetRenderTargets(1, &d3dRtvCPUDescriptorHandle, true, &d3dDsvCPUDescriptorHandle);
 	// ±×¸®±â
-	m_pScene->Render(m_d3dCommandList.Get(), m_Timer.GetTimeElapsed());
+	m_pScene->Render(m_d3dCommandList.Get(), m_Timer.GetTimeElapsed()*1000);
 
 	barriers[0].Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barriers[0].Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;

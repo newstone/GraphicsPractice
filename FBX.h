@@ -2,7 +2,6 @@
 
 #include "Player.h"
 #include <map>
-#include <stack>
 
 #define WEIGHTS 4
 
@@ -26,7 +25,7 @@ public:
 	HRESULT LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, const string& strPath, AnimationObject* pOutObject);
 	void SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxMesh* fbxMesh, AnimationObject* pOutObject);
 	void CreateHierarchy(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, FbxNode* pfbxNode, AnimationObject* pParentsObject);
-	void SetAnimation(FbxNode* pfbxNode, AnimationObject* pRootObject, AnimationController* pAnimationController);
+	void SetAnimation(FbxNode* pfbxNode, AnimationObject* pRootObject);
 
 	FbxAMatrix GetGeometricTransform(FbxNode *pfbxNode);
 	void GetAnimationData(FbxNode* pfbxNode, FbxMesh* pfbxMesh, AnimationObject* pRootObject, AnimationController* pAnimationController);

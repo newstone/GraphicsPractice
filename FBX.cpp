@@ -65,11 +65,9 @@ HRESULT FBX::LoadFBXFile(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd
 	if (!bSuccess) 
 		return E_FAIL;
 	pOutObject->SetRoot(true);
-	AnimationController* pAnimationController = pOutObject->GetAnimationControllerOrNull();
-	pAnimationController = new AnimationController();
 
 	CreateHierarchy(pd3dDevice, pd3dCommandList, m_pfbxScene->GetNode(0), pOutObject);
-	SetAnimation(m_pfbxScene->GetNode(0), pOutObject, pAnimationController);
+	SetAnimation(m_pfbxScene->GetNode(0), pOutObject);
 
 	pfbxImporter->Destroy();
 
@@ -92,7 +90,7 @@ void FBX::CreateHierarchy(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *p
 		AnimationObject* pChildObject = new AnimationObject();
 		pChildObject->SetParents(pParentsObject);
 		pChildObject->SetName(pfbxNode->GetChild(i)->GetName());
-		
+
 		pParentsObject->AddChild(pChildObject);
 
 		CreateHierarchy(pd3dDevice, pd3dCommandList, pfbxNode->GetChild(i), pChildObject);
@@ -619,7 +617,7 @@ void FBX::GetAnimationData(FbxNode* pfbxNode, FbxMesh* pfbxMesh, AnimationObject
 			
 			if (a == 0) // 바인드 포즈 행렬은 각 노드에 cluster 숫자 셋은 처음 한 번만 한다.
 			{
-				pRootObject->FindObjectByNameAndSetClusterNum(pCurrCluster->GetName(), pRootObject, c);
+				pRootObject->FindObjectByNameAndSetClusterNum(pCurrCluster->GetLink()->GetName(), pRootObject, c);
 
 				FbxAMatrix TransformMatrix;
 				FbxAMatrix TransformLinkMatrix;
@@ -648,8 +646,10 @@ void FBX::GetAnimationData(FbxNode* pfbxNode, FbxMesh* pfbxMesh, AnimationObject
 	}
 	FbxArrayDelete(fbxAnimationStackNames);
 }
-void FBX::SetAnimation(FbxNode* pfbxNode, AnimationObject* pRootObject, AnimationController* pAnimationController)
+void FBX::SetAnimation(FbxNode* pfbxNode, AnimationObject* pRootObject)
 {
+	UINT nControllerIndex(0);
+
 	if (pfbxNode == nullptr)
 		return;
 
@@ -667,7 +667,12 @@ void FBX::SetAnimation(FbxNode* pfbxNode, AnimationObject* pRootObject, Animatio
 
 		if (pFM != nullptr)
 		{
-			GetAnimationData(pFM->GetNode(), pFM, pRootObject, pAnimationController);
+			AnimationObject*pTargetObject(pRootObject->FindObjectByName(pcurrNode->GetName(), pRootObject));
+			pTargetObject->CreateAnimationController(nControllerIndex);
+			GetAnimationData(pFM->GetNode(), pFM, pRootObject, pTargetObject->GetAnimationControllerOrNull());
+			pRootObject->AdjustClusterIndex(nControllerIndex);
+			nControllerIndex++;
+			return;
 		}
 
 		for (int i = 0; i < pcurrNode->GetChildCount(); i++)

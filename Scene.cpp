@@ -36,6 +36,7 @@ void Scene::LoadModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dC
 	m_pObject->SetPosition(rand() % 50 - 100, rand() % 50 - 100, rand() % 50 - 100);
 	
 	m_vObjects.push_back(m_pObject);
+	BuildObjects(pd3dDevice, pd3dCommandList);
 	m_sReleaseUploadBuffer.push(m_pObject);
 }
 
@@ -167,6 +168,9 @@ void Scene::Render(ID3D12GraphicsCommandList *pd3dCommandList, UINT fTimeElapsed
 	for (int i = 0; i < m_vObjects.size(); i++)
 	{
 		if (m_vObjects[i] != nullptr)
-			m_vObjects[i]->Render(pd3dCommandList, fTimeElapsed);
+		{
+			///m_vObjects[i]->UpdateTransform(nullptr);
+			m_vObjects[i]->Render(pd3dCommandList, fTimeElapsed, m_vObjects[i]);
+		}
 	}
 }

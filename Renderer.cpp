@@ -15,7 +15,7 @@ Renderer::~Renderer()
 void Renderer::CreateRenderer(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, ID3D12RootSignature *pd3dGraphicsRootSignature)
 {
 	CreatePipelineState(pd3dDevice, pd3dGraphicsRootSignature);
-	CreateCbvAndSrvDescriptorHeaps(pd3dDevice, pd3dCommandList, 1, 1);
+	CreateCbvAndSrvDescriptorHeaps(pd3dDevice, pd3dCommandList, 1, 0);
 
 	Material* pMaterial(new Material());
 	m_vpMaterials.push_back(pMaterial);
@@ -196,6 +196,8 @@ void Renderer::CreateCbvAndSrvDescriptorHeaps(ID3D12Device *pd3dDevice, ID3D12Gr
 void Renderer::CreateConstantBufferViews(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dCommandList, int nConstantBufferViews
 	, ID3D12Resource *pd3dConstantBuffers, UINT nStride)
 {
+	nStride = ((nStride + 255) & ~255);
+
 	D3D12_GPU_VIRTUAL_ADDRESS d3dGpuVirtualAddress = pd3dConstantBuffers->GetGPUVirtualAddress();
 	D3D12_CONSTANT_BUFFER_VIEW_DESC d3dCBVDesc;
 	d3dCBVDesc.SizeInBytes = nStride;
@@ -207,6 +209,8 @@ void Renderer::CreateConstantBufferViews(ID3D12Device *pd3dDevice, ID3D12Graphic
 		d3dCbvCPUDescriptorHandle.ptr = m_d3dCbvCPUDescriptorStartHandle.ptr + (gnCbvSrvDescriptorIncrementSize * j);
 		pd3dDevice->CreateConstantBufferView(&d3dCBVDesc, d3dCbvCPUDescriptorHandle);
 	}
+
+	HRESULT hReason = pd3dDevice->GetDeviceRemovedReason();
 }
 
 D3D12_SHADER_RESOURCE_VIEW_DESC Renderer::GetShaderResourceViewDesc(D3D12_RESOURCE_DESC d3dResourceDesc, UINT nTextureType)
@@ -278,10 +282,11 @@ void Renderer::OnPrepareForRender(ID3D12GraphicsCommandList * pd3dCommandList)
 {
 	pd3dCommandList->SetPipelineState(m_d3dPipelineStates.Get());
 
-	pd3dCommandList->SetDescriptorHeaps(1, &m_d3dDescriptorHeap);
+	ID3D12DescriptorHeap* ppHeaps[] = { m_d3dDescriptorHeap.Get()};
+	pd3dCommandList->SetDescriptorHeaps(1, ppHeaps);
 
-	if(m_vpMaterials[0]->GetTexture() != nullptr)
-		pd3dCommandList->SetGraphicsRootDescriptorTable(3, m_vpMaterials[0]->GetTexture()->GetArgumentInfos(0).m_d3dSrvGpuDescriptorHandle);
+//	if(m_vpMaterials[0]->GetTexture() != nullptr)
+//		pd3dCommandList->SetGraphicsRootDescriptorTable(3, m_vpMaterials[0]->GetTexture()->GetArgumentInfos(0).m_d3dSrvGpuDescriptorHandle);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

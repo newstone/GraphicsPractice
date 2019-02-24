@@ -48,7 +48,7 @@ ID3D12Resource* Mesh::CreateBufferResource(ID3D12Device *pd3dDevice, ID3D12Graph
 
 	HRESULT hResult = pd3dDevice->CreateCommittedResource(&d3dHeapPropertiesDesc, D3D12_HEAP_FLAG_NONE, &d3dResourceDesc, d3dResourceInitialStates, NULL, __uuidof(ID3D12Resource), (void **)&pd3dBuffer);
 
-	HRESULT reason = pd3dDevice->GetDeviceRemovedReason();
+	HRESULT hReason = pd3dDevice->GetDeviceRemovedReason();
 
 	if (pData)
 	{
