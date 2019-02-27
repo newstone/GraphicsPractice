@@ -156,21 +156,30 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 
 	GetBlendInfo(pFbxMesh, mWeight);
 
-	for (map<int, vector<BlendInfo>>::iterator it = mWeight.begin(); it != mWeight.end(); it++)
+	if (mWeight.size() > 0)
 	{
-		if (it->second.size() < WEIGHTS)
+		vxmf4Weight.resize(mWeight.size());
+		vxmn4Cluster.resize(mWeight.size());
+
+		for (map<int, vector<BlendInfo>>::iterator it = mWeight.begin(); it != mWeight.end(); it++)
 		{
-			for (int i = 0; it->second.size() < WEIGHTS; i++)
+			if (it->second.size() < WEIGHTS)
 			{
-				BlendInfo bi;
-				bi.Index = 0;
-				bi.Weight = 0.0f;
-				it->second.push_back(bi);
+				for (int i = 0; it->second.size() < WEIGHTS; i++)
+				{
+					BlendInfo bi;
+					bi.Index = 0;
+					bi.Weight = 0.0f;
+					it->second.push_back(bi);
+				}
 			}
-		}
-		else if (it->second.size() > WEIGHTS)
-		{
-			it->second[3].Weight = 1.0f - it->second[0].Weight - it->second[1].Weight - it->second[2].Weight;
+			else if (it->second.size() > WEIGHTS)
+			{
+				it->second[3].Weight = 1.0f - it->second[0].Weight - it->second[1].Weight - it->second[2].Weight;
+			}
+
+			vxmf4Weight.push_back(XMFLOAT4(it->second[0].Weight, it->second[1].Weight, it->second[2].Weight, it->second[3].Weight));
+			vxmn4Cluster.push_back(XMUINT4(it->second[0].Index, it->second[1].Index, it->second[2].Index, it->second[3].Index));
 		}
 	}
 
@@ -232,7 +241,7 @@ void FBX::SetModel(ID3D12Device *pd3dDevice, ID3D12GraphicsCommandList *pd3dComm
 		{
 			//bFlags[4] = true;
 		}
-		if (vxmf4Weight.size() > 0)
+		if (mWeight.size() > 0)
 		{
 			bFlags[5] = true;
 		}
@@ -608,8 +617,9 @@ void FBX::GetAnimationData(FbxNode* pfbxNode, FbxMesh* pfbxMesh, AnimationObject
 			fbxEndTime = fbxTimeLineTimeSpan.GetStop();
 		}
 
-		pAnimationController->GetAnimationResource().SetStartAndEndTime(static_cast<DWORD>(fbxStartTime.GetFrameCount(FbxTime::eFrames24))
-			, static_cast<DWORD>(fbxEndTime.GetFrameCount(FbxTime::eFrames24)));
+		FbxLongLong fbxRealEndTime = fbxEndTime.GetMilliSeconds();
+
+		pAnimationController->GetAnimationResource().SetEndTime(a, fbxRealEndTime);
 
 		for (int c = 0; c < nClusters; c++)
 		{
@@ -636,11 +646,15 @@ void FBX::GetAnimationData(FbxNode* pfbxNode, FbxMesh* pfbxMesh, AnimationObject
 			for (FbxLongLong time = fbxStartTime.GetFrameCount(FbxTime::eFrames24); time <= fbxEndTime.GetFrameCount(FbxTime::eFrames24); time++)
 			{
 				FbxTime fbxCurrTime;
+
 				fbxCurrTime.SetFrame(time, FbxTime::eFrames24);
+				FbxLongLong fbxRealTime = fbxCurrTime.GetMilliSeconds();
+
 				FbxAMatrix currentTransformOffset = pfbxNode->EvaluateGlobalTransform(fbxCurrTime) * GeometryTransform;
+				FbxAMatrix q = pCurrCluster->GetLink()->EvaluateGlobalTransform(fbxCurrTime);
 				FbxAMatrix GlobalTransform = currentTransformOffset.Inverse() * pCurrCluster->GetLink()->EvaluateGlobalTransform(fbxCurrTime);
 
-				pAnimationController->GetAnimationResource().AddAnimationStack(GlobalTransform, static_cast<DWORD>(time), a, c);
+				pAnimationController->GetAnimationResource().AddAnimationStack(GlobalTransform, static_cast<DWORD>(fbxRealTime), a, c);
 			}
 		}
 	}

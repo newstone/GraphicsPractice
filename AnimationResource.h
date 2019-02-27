@@ -32,6 +32,6 @@ public:
 
 	void AddBindPoseTransform(const XMFLOAT4X4& mBindPose);
 	void AddAnimationStack(FbxAMatrix& fbxAnimationMatrix, const DWORD& nTime, UINT nAnimation, UINT nCluster);
-	void SetStartAndEndTime(const DWORD & fbxStartTime, const DWORD & fbxEndTime);
+	void SetEndTime(UINT nAnimationCount, const DWORD & fbxEndTime);
 };
 

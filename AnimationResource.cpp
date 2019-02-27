@@ -62,7 +62,7 @@ void AnimationResource::ReserveResource(UINT nAnimation, UINT nCluster)
 
 	m_AnimationTime.ReserveTimeResource(nAnimation, nCluster);
 }
-void AnimationResource::SetStartAndEndTime(const DWORD & fbxStartTime, const DWORD & fbxEndTime)
+void AnimationResource::SetEndTime(UINT nAnimationCount, const DWORD & fbxEndTime)
 {
-	m_AnimationTime.AddTotalTime(fbxStartTime, fbxEndTime);
+	m_AnimationTime.SetTotalTime(nAnimationCount, fbxEndTime);
 }

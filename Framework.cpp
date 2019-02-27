@@ -413,10 +413,10 @@ void Framework::ProcessInput()
 				m_pPlayer->Rotate(cyDelta, cxDelta, 0.0f);
 		}
 		if (dwDirection) 
-			m_pPlayer->Move(dwDirection, 0.5f, false);
+			m_pPlayer->Move(dwDirection, 250.0f * m_Timer.GetTimeElapsed(), false);
 	}
 
-	m_pPlayer->Update(0.01f);
+	m_pPlayer->Update(m_Timer.GetTimeElapsed());
 }
 void Framework::Update()
 {

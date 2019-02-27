@@ -1,10 +1,9 @@
 #pragma once
 struct TotalTime
 {
-	DWORD nStartTime;
 	DWORD nEndTime;
-	TotalTime() : nStartTime(0), nEndTime(0) {};
-	TotalTime(const DWORD& s, const DWORD& e) : nStartTime(s), nEndTime(e){}
+	TotalTime() : nEndTime(0) {};
+	TotalTime(const DWORD& e) : nEndTime(e){}
 };
 
 class AnimationTime
@@ -16,7 +15,7 @@ public:
 	AnimationTime();
 	~AnimationTime();
 
-	void AddTotalTime(const DWORD& nStartTime, const DWORD& nEndTime);
+	void SetTotalTime(UINT nAnimationCount, const DWORD& nEndTime);
 	void ReserveTimeResource(UINT nAimation, UINT nCluster);
 	TotalTime& GetTotalTime(UINT nAnimationCount);
 

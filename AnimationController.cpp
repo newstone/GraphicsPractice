@@ -85,7 +85,7 @@ void AnimationController::FrameInterpolate(UINT nCluster, const DWORD& nTime, SQ
 	}
 	else
 	{
-		float fTimeRate((nTime - prev) / static_cast<float>(next - prev));
+		float fTimeRate((nTime - m_AnimationResource.GetAnimInfo(m_nCurrentAnimation, nCluster)[prev].nTime) / static_cast<float>(m_AnimationResource.GetAnimInfo(m_nCurrentAnimation, nCluster)[next].nTime - m_AnimationResource.GetAnimInfo(m_nCurrentAnimation, nCluster)[prev].nTime));
 
 		XMStoreFloat4(&result.Q, XMQuaternionSlerp(XMLoadFloat4(&m_AnimationResource.GetAnimInfo(m_nCurrentAnimation, nCluster)[prev].srt.Q)
 			, XMLoadFloat4(&m_AnimationResource.GetAnimInfo(m_nCurrentAnimation, nCluster)[next].srt.Q), fTimeRate));
@@ -218,7 +218,7 @@ void AnimationController::SetToRootTransforms(AnimationObject* pRootObject)
 	}
 }
 void AnimationController::AdvanceAnimation(ID3D12GraphicsCommandList* pd3dCommandList, UINT fTimeElapsed, AnimationObject* pRootObject)
-{
+{  
 	DWORD dwdTime(m_AnimationResource.GetAnimationTime().GetCurrTime() + fTimeElapsed);
 	m_AnimationResource.GetAnimationTime().SetCurrTime(dwdTime);
 	dwdTime -= m_AnimationResource.GetAnimationTime().GetStartTime();
@@ -227,7 +227,7 @@ void AnimationController::AdvanceAnimation(ID3D12GraphicsCommandList* pd3dComman
 	{
 		dwdTime -= m_AnimationResource.GetAnimationTime().GetTotalTime(m_nCurrentAnimation).nEndTime;
 		m_AnimationResource.GetAnimationTime().SetStartTime(m_AnimationResource.GetAnimationTime().GetCurrTime() - dwdTime);
-		m_AnimationResource.GetAnimationTime().SetCurrTime(dwdTime);
+		m_AnimationResource.GetAnimationTime().SetCurrTime(m_AnimationResource.GetAnimationTime().GetStartTime()+ dwdTime);
 	}
 
 	SetToParentTransforms(dwdTime, pRootObject); 
@@ -245,7 +245,7 @@ void AnimationController::AdvanceAnimation(ID3D12GraphicsCommandList* pd3dComman
 		// 애니메이션 정보를 담고, 해당 노드의 좌표계에서 월드 좌표계로 이동시키는 행렬
 
 		XMMATRIX toRoot = XMLoadFloat4x4(&m_pBoneObject->GetToRootTransform());
-		XMMATRIX finalTransform = XMMatrixMultiply(XMMatrixTranspose(offset), (toRoot));
+		XMMATRIX finalTransform = XMMatrixMultiply((offset), XMMatrixTranspose(toRoot));
 	
 		XMStoreFloat4x4(&xmf4x4Animation, XMMatrixTranspose(finalTransform));
 	
